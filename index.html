@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Games Hub</title>
+    <title>Crash Game</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -35,376 +35,937 @@
         
         header {
             background-color: var(--dark-green);
-            padding: 1.5rem;
+            padding: 1rem;
             text-align: center;
             box-shadow: var(--shadow);
+            position: relative;
         }
         
         h1 {
             color: var(--secondary);
-            font-size: 2.8rem;
+            font-size: 2.5rem;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-            margin-bottom: 0.5rem;
         }
         
-        .subtitle {
-            color: var(--white);
-            font-size: 1.2rem;
-            opacity: 0.9;
+        .balance-display {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: var(--secondary);
+            color: var(--black);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
         
-        .main-content {
-            flex: 1;
+        .game-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 1rem;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-            text-align: center;
-        }
-        
-        .games-container {
-            width: 100%;
-            max-width: 100vw;
-            overflow-x: auto;
-            padding: 2rem 0;
-            margin-top: 2rem;
-            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-        }
-        
-        .games-scroll {
-            display: inline-flex;
             gap: 2rem;
-            padding: 0 2rem;
         }
         
-        .game-card {
+        /* Crash Game Styles */
+        .crash-game {
             background-color: var(--dark-green);
             border-radius: 10px;
             padding: 2rem;
             box-shadow: var(--shadow);
-            transition: transform 0.3s ease;
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-width: 300px;
-            height: 400px;
-        }
-        
-        .game-card:hover {
-            transform: translateY(-10px);
-        }
-        
-        .game-icon {
-            font-size: 3.5rem;
-            margin-bottom: 1.5rem;
-            color: var(--secondary);
-        }
-        
-        /* Custom Blackjack icon container */
-        .blackjack-icon {
             position: relative;
-            width: 60px;
-            height: 60px;
-            margin-bottom: 1.5rem;
         }
         
-        /* Card shapes for Blackjack icon */
-        .blackjack-icon .card1,
-        .blackjack-icon .card2 {
+        .crash-display {
+            width: 100%;
+            height: 300px;
+            background-color: var(--light-green);
+            border-radius: 8px;
+            border: 4px solid var(--secondary);
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .crash-graph {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        .crash-line {
             position: absolute;
-            width: 50px;
-            height: 70px;
-            background-color: var(--white);
-            border-radius: 5px;
-            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: var(--red);
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 2px;
+            background-color: var(--secondary);
+            z-index: 5;
+        }
+        
+        .crash-path {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+            stroke: var(--secondary);
+            stroke-width: 3;
+            fill: none;
+            z-index: 5;
+        }
+        
+        .crash-multiplier {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            background-color: var(--secondary);
+            color: var(--black);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
             font-weight: bold;
             font-size: 1.5rem;
+            z-index: 10;
+            box-shadow: var(--shadow);
         }
         
-        .blackjack-icon .card1 {
-            transform: rotate(-10deg);
-            z-index: 2;
+        .crash-history {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
         }
         
-        .blackjack-icon .card2 {
-            transform: rotate(10deg) translateX(15px);
-            background-color: var(--black);
+        .history-item {
+            background-color: var(--light-green);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: bold;
+            min-width: 50px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .history-item.green {
+            background-color: #2ecc71;
             color: var(--white);
         }
         
-        /* Custom Crash icon */
-        .crash-icon {
-            position: relative;
-            width: 60px;
-            height: 60px;
-            margin-bottom: 1.5rem;
+        .history-item.red {
+            background-color: var(--red);
+            color: var(--white);
         }
         
-        .crash-icon .rocket {
-            position: absolute;
-            font-size: 2.5rem;
-            color: var(--secondary);
-            animation: float 2s infinite ease-in-out;
-        }
-        
-        .crash-icon .explosion {
-            position: absolute;
-            font-size: 1.5rem;
-            color: var(--red);
-            right: -10px;
-            bottom: -5px;
-            opacity: 0;
-            animation: pulse 1.5s infinite;
-        }
-        
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 0; transform: scale(1); }
-            50% { opacity: 1; transform: scale(1.3); }
-        }
-        
-        .game-title {
-            font-size: 1.8rem;
+        .bet-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            width: 100%;
             margin-bottom: 1rem;
+        }
+        
+        .bet-input-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .bet-input-label {
             color: var(--secondary);
+            font-weight: bold;
         }
         
-        .game-desc {
-            margin-bottom: 2rem;
-            line-height: 1.6;
+        .bet-input {
+            background-color: var(--light-green);
+            border: 2px solid var(--secondary);
+            color: var(--white);
+            padding: 0.8rem 1rem;
+            border-radius: 20px;
+            font-size: 1.2rem;
+            width: 200px;
+            text-align: center;
+            font-weight: bold;
         }
         
-        .play-btn {
-            padding: 0.8rem 1.8rem;
+        .bet-input:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(248, 197, 55, 0.3);
+        }
+        
+        .quick-bet-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 0.5rem;
+        }
+        
+        .quick-bet-btn {
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
             background-color: var(--secondary);
             color: var(--black);
             border: none;
-            border-radius: 5px;
-            font-size: 1.1rem;
+            border-radius: 20px;
+            cursor: pointer;
             font-weight: bold;
-            cursor: pointer;
             transition: all 0.2s;
-            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+        }
+        
+        .quick-bet-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        
+        .quick-bet-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .action-buttons {
             display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-top: auto;
-            text-decoration: none;
-        }
-        
-        .play-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 8px rgba(0, 0, 0, 0.3);
-        }
-        
-        .play-btn:active {
-            transform: translateY(0);
-            box-shadow: 0 2px 3px rgba(0, 0, 0, 0.2);
-        }
-        
-        footer {
-            background-color: var(--dark-green);
-            padding: 1rem;
-            text-align: center;
-            margin-top: auto;
-            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-        }
-        
-        /* Hide scrollbar but keep functionality */
-        .games-container::-webkit-scrollbar {
-            display: none;
-        }
-        
-        .games-container {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-        
-        /* Navigation arrows for desktop */
-        .nav-arrow {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            background-color: rgba(10, 59, 34, 0.7);
-            color: var(--secondary);
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
+            gap: 1rem;
             justify-content: center;
+            margin-top: 1rem;
+        }
+        
+        .action-btn {
+            padding: 1rem 2rem;
+            font-size: 1.2rem;
+            background-color: var(--secondary);
+            color: var(--black);
+            border: none;
+            border-radius: 50px;
             cursor: pointer;
-            z-index: 10;
-            font-size: 1.5rem;
-            transition: all 0.3s;
-            opacity: 0;
+            font-weight: bold;
+            transition: all 0.2s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
         
-        .games-wrapper {
-            position: relative;
+        .action-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 7px 20px rgba(0,0,0,0.3);
+        }
+        
+        .action-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .action-btn.cashout {
+            background-color: #2ecc71;
+            color: var(--white);
+        }
+        
+        .action-btn.place-bet {
+            background-color: var(--secondary);
+        }
+        
+        .bets-container {
             width: 100%;
+            margin-top: 1rem;
         }
         
-        .games-wrapper:hover .nav-arrow {
+        .bets-title {
+            text-align: center;
+            color: var(--secondary);
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+        
+        .bets-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            max-height: 150px;
+            overflow-y: auto;
+            padding: 5px;
+        }
+        
+        .bet-item {
+            background-color: var(--light-green);
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .bet-item .user {
+            font-weight: bold;
+        }
+        
+        .bet-item .multiplier {
+            color: var(--secondary);
+        }
+        
+        .bet-item.cashed-out .multiplier {
+            color: #2ecc71;
+        }
+        
+        .bet-item.crashed .multiplier {
+            color: var(--red);
+        }
+        
+        .win-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+        
+        .win-animation.show {
             opacity: 1;
         }
         
-        .nav-arrow.left {
-            left: 10px;
+        .win-content {
+            background-color: var(--secondary);
+            padding: 2rem;
+            border-radius: 10px;
+            text-align: center;
+            color: var(--black);
+            font-size: 2rem;
+            font-weight: bold;
+            animation: pulse 1.5s infinite;
         }
         
-        .nav-arrow.right {
-            right: 10px;
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
         }
         
-        .nav-arrow:hover {
-            background-color: var(--dark-green);
-            transform: translateY(-50%) scale(1.1);
+        .auto-cashout-container {
+            margin-top: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
         }
         
+        .auto-cashout-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .auto-cashout-input {
+            background-color: var(--light-green);
+            border: 2px solid var(--secondary);
+            color: var(--white);
+            padding: 0.5rem;
+            border-radius: 20px;
+            width: 80px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        /* Responsive adjustments */
         @media (max-width: 768px) {
-            h1 {
-                font-size: 2.2rem;
+            .crash-display {
+                height: 200px;
             }
             
-            .game-card {
-                min-width: 280px;
-                height: 380px;
+            .action-btn {
+                padding: 0.8rem 1.5rem;
+                font-size: 1rem;
             }
             
-            .nav-arrow {
-                display: none;
+            .bet-input {
+                width: 160px;
+                padding: 0.6rem;
+                font-size: 1rem;
+            }
+            
+            .quick-bet-btn {
+                padding: 0.4rem 0.8rem;
+                font-size: 0.8rem;
             }
         }
     </style>
 </head>
 <body>
     <header>
-        <h1>Games Hub</h1>
-        <p class="subtitle">Choose your game and test your luck!</p>
+        <h1>Crash Game</h1>
+        <div class="balance-display">
+            <i class="fas fa-coins"></i>
+            <span id="balance">10000</span>
+        </div>
     </header>
     
-    <div class="main-content">
-        <div class="games-wrapper">
-            <div class="nav-arrow left" onclick="scrollGames(-300)">
-                <i class="fas fa-chevron-left"></i>
+    <div class="game-container">
+        <div class="crash-game">
+            <div class="crash-history" id="history">
+                <!-- History items will be added by JavaScript -->
             </div>
             
-            <div class="games-container">
-                <div class="games-scroll">
-                    <div class="game-card">
-                        <!-- Custom Blackjack icon with overlapping cards -->
-                        <div class="blackjack-icon">
-                            <div class="card1">A</div>
-                            <div class="card2">K</div>
-                        </div>
-                        <h2 class="game-title">Blackjack</h2>
-                        <p class="game-desc">
-                            Try to beat the dealer without going over 21. 
-                            Double down, split pairs, and aim for blackjack!
-                        </p>
-                        <a href="https://riodev0.github.io/" class="play-btn">
-                            <i class="fas fa-play"></i> Play Now
-                        </a>
-                    </div>
-                    
-                    <div class="game-card">
-                        <i class="fas fa-bus game-icon"></i>
-                        <h2 class="game-title">Ride the Bus</h2>
-                        <p class="game-desc">
-                            A challenging guessing game with four phases. 
-                            Can you ride the bus all the way to the end?
-                        </p>
-                        <a href="https://riodev0.github.io/ridethebus" class="play-btn">
-                            <i class="fas fa-play"></i> Play Now
-                        </a>
-                    </div>
-                    
-                    <div class="game-card">
-                        <i class="fas fa-sliders-h game-icon"></i>
-                        <h2 class="game-title">Plinko</h2>
-                        <p class="game-desc">
-                           Drop balls to gain money test your luck today!
-                        </p>
-                        <a href="https://riodev0.github.io/plinko" class="play-btn">
-                            <i class="fas fa-play"></i> Play Now
-                        </a>
-                    </div>
-                    
-                    <div class="game-card">
-                        <!-- Custom Crash icon with rocket and explosion -->
-                        <div class="crash-icon">
-                            <i class="fas fa-rocket rocket"></i>
-                            <i class="fas fa-explosion explosion"></i>
-                        </div>
-                        <h2 class="game-title">Crash</h2>
-                        <p class="game-desc">
-                            Bet on a multiplier before the rocket crashes! 
-                            Cash out at the right moment to maximize your winnings.
-                        </p>
-                        <a href="https://riodev0.github.io/crash" class="play-btn">
-                            <i class="fas fa-play"></i> Play Now
-                        </a>
+            <div class="crash-display">
+                <div class="crash-graph" id="graph">
+                    <div class="crash-line"></div>
+                    <svg class="crash-path" id="path"></svg>
+                </div>
+                <div class="crash-multiplier" id="multiplier">1.00x</div>
+            </div>
+            
+            <div class="bet-controls">
+                <div class="bet-input-container">
+                    <div class="bet-input-label">BET AMOUNT</div>
+                    <input type="number" class="bet-input" id="bet-amount" min="1" step="1" value="10">
+                    <div class="quick-bet-buttons">
+                        <button class="quick-bet-btn" id="half-btn">½</button>
+                        <button class="quick-bet-btn" id="double-btn">2×</button>
+                        <button class="quick-bet-btn" id="max-btn">MAX</button>
                     </div>
                 </div>
             </div>
             
-            <div class="nav-arrow right" onclick="scrollGames(300)">
-                <i class="fas fa-chevron-right"></i>
+            <div class="auto-cashout-container">
+                <div class="auto-cashout-label">
+                    <input type="checkbox" id="auto-cashout-check">
+                    <label for="auto-cashout-check">Auto Cashout</label>
+                </div>
+                <input type="number" class="auto-cashout-input" id="auto-cashout-value" min="1.1" step="0.1" value="2.0" disabled>
+            </div>
+            
+            <div class="action-buttons">
+                <button id="place-bet-btn" class="action-btn place-bet">
+                    <i class="fas fa-arrow-down"></i> PLACE BET
+                </button>
+                <button id="cashout-btn" class="action-btn cashout" disabled>
+                    <i class="fas fa-money-bill-wave"></i> CASHOUT
+                </button>
+            </div>
+            
+            <div class="bets-container">
+                <div class="bets-title">ACTIVE BETS</div>
+                <div class="bets-list" id="bets-list">
+                    <!-- Active bets will be added here -->
+                </div>
             </div>
         </div>
     </div>
     
-    <footer>
-        <p>© 2025 tate brewer | All rights reserved</p>
-    </footer>
+    <div class="win-animation" id="win-animation">
+        <div class="win-content">
+            <div id="win-message">YOU WON!</div>
+            <div id="win-amount">$0</div>
+        </div>
+    </div>
 
     <script>
-        // Function to scroll the games horizontally
-        function scrollGames(amount) {
-            const container = document.querySelector('.games-container');
-            container.scrollBy({
-                left: amount,
-                behavior: 'smooth'
-            });
+        // Game configuration
+        const config = {
+            initialBalance: 10000,
+            houseEdge: 0.03, // 3% house edge
+            maxMultiplier: 100,
+            historySize: 10,
+            gameDuration: 5000, // Base duration in ms
+            maxGameDuration: 10000, // Max duration in ms
+            crashPointVariation: 0.3, // How much the crash point can vary
+            minCrashPoint: 1.1,
+            maxCrashPoint: 100,
+            graphPoints: 100 // Number of points in the graph
+        };
+
+        // Game state
+        const state = {
+            balance: config.initialBalance,
+            currentBet: 10,
+            gameState: 'waiting', // waiting, counting, flying, crashed
+            crashPoint: 1,
+            currentMultiplier: 1,
+            startTime: 0,
+            elapsedTime: 0,
+            crashPath: [],
+            history: [],
+            bets: [],
+            userBet: null,
+            autoCashoutEnabled: false,
+            autoCashoutValue: 2.0,
+            animationFrame: null
+        };
+
+        // DOM elements
+        const elements = {
+            balance: document.getElementById('balance'),
+            betAmount: document.getElementById('bet-amount'),
+            halfBtn: document.getElementById('half-btn'),
+            doubleBtn: document.getElementById('double-btn'),
+            maxBtn: document.getElementById('max-btn'),
+            placeBetBtn: document.getElementById('place-bet-btn'),
+            cashoutBtn: document.getElementById('cashout-btn'),
+            graph: document.getElementById('graph'),
+            path: document.getElementById('path'),
+            multiplier: document.getElementById('multiplier'),
+            history: document.getElementById('history'),
+            betsList: document.getElementById('bets-list'),
+            winAnimation: document.getElementById('win-animation'),
+            winMessage: document.getElementById('win-message'),
+            winAmount: document.getElementById('win-amount'),
+            autoCashoutCheck: document.getElementById('auto-cashout-check'),
+            autoCashoutValue: document.getElementById('auto-cashout-value')
+        };
+
+        // Initialize the game
+        function init() {
+            updateUI();
+            setupEventListeners();
+            generateHistory();
+            startWaitingPhase();
         }
-        
-        // Auto-hide navigation arrows when at scroll extremes
-        const gamesContainer = document.querySelector('.games-container');
-        const leftArrow = document.querySelector('.nav-arrow.left');
-        const rightArrow = document.querySelector('.nav-arrow.right');
-        
-        gamesContainer.addEventListener('scroll', function() {
-            // Show/hide left arrow
-            if (gamesContainer.scrollLeft <= 10) {
-                leftArrow.style.opacity = '0';
-                leftArrow.style.pointerEvents = 'none';
-            } else {
-                leftArrow.style.opacity = '1';
-                leftArrow.style.pointerEvents = 'auto';
+
+        // Start waiting phase (between games)
+        function startWaitingPhase() {
+            state.gameState = 'waiting';
+            state.currentMultiplier = 1;
+            state.crashPoint = calculateCrashPoint();
+            state.crashPath = generateCrashPath(state.crashPoint);
+            state.userBet = null; // Reset user bet
+            updateMultiplierDisplay();
+            updateGraph();
+            
+            // Start countdown to next game
+            setTimeout(startCountdownPhase, 3000);
+        }
+
+        // Start countdown phase
+        function startCountdownPhase() {
+            if (state.gameState !== 'waiting') return;
+            
+            state.gameState = 'counting';
+            updateUI();
+            
+            // Countdown 3 seconds
+            let count = 3;
+            elements.multiplier.textContent = count + '...';
+            
+            const countdownInterval = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    elements.multiplier.textContent = count + '...';
+                } else {
+                    clearInterval(countdownInterval);
+                    elements.multiplier.textContent = 'GO!';
+                    setTimeout(startFlyingPhase, 500);
+                }
+            }, 1000);
+        }
+
+        // Start flying phase (multiplier increasing)
+        function startFlyingPhase() {
+            if (state.gameState !== 'counting') return;
+            
+            state.gameState = 'flying';
+            state.startTime = Date.now();
+            state.elapsedTime = 0;
+            updateUI();
+            
+            // Start animation
+            animateFlight();
+        }
+
+        // Animate the flying phase
+        function animateFlight() {
+            if (state.gameState !== 'flying') return;
+            
+            state.elapsedTime = Date.now() - state.startTime;
+            const progress = Math.min(state.elapsedTime / config.gameDuration, 1);
+            
+            // Calculate current multiplier based on crash path
+            const pathIndex = Math.min(Math.floor(progress * (config.graphPoints - 1)), config.graphPoints - 1);
+            state.currentMultiplier = state.crashPath[pathIndex];
+            
+            // Check if we've reached the crash point
+            if (state.currentMultiplier >= state.crashPoint) {
+                endGame();
+                return;
             }
             
-            // Show/hide right arrow
-            if (gamesContainer.scrollLeft >= gamesContainer.scrollWidth - gamesContainer.clientWidth - 10) {
-                rightArrow.style.opacity = '0';
-                rightArrow.style.pointerEvents = 'none';
-            } else {
-                rightArrow.style.opacity = '1';
-                rightArrow.style.pointerEvents = 'auto';
+            // Check for auto cashout
+            if (state.autoCashoutEnabled && state.userBet && 
+                state.currentMultiplier >= state.autoCashoutValue) {
+                cashout();
+                return;
             }
-        });
-        
-        // Initialize arrow visibility
-        gamesContainer.dispatchEvent(new Event('scroll'));
+            
+            updateMultiplierDisplay();
+            updateGraph();
+            
+            // Continue animation
+            state.animationFrame = requestAnimationFrame(animateFlight);
+        }
+
+        // End the game (crash)
+        function endGame() {
+            if (state.gameState !== 'flying') return;
+            
+            state.gameState = 'crashed';
+            state.currentMultiplier = state.crashPoint;
+            updateMultiplierDisplay();
+            updateGraph();
+            
+            // Process all bets as losses
+            state.bets.forEach(bet => {
+                if (!bet.cashedOut) {
+                    bet.crashed = true;
+                }
+            });
+            
+            // Add to history
+            addToHistory(state.crashPoint);
+            
+            // Update UI
+            updateBetsList();
+            updateUI();
+            
+            // Clear any animation
+            if (state.animationFrame) {
+                cancelAnimationFrame(state.animationFrame);
+                state.animationFrame = null;
+            }
+            
+            // Start next game after delay
+            setTimeout(startWaitingPhase, 5000);
+        }
+
+        // Calculate the crash point using the crash algorithm
+        function calculateCrashPoint() {
+            // Using a simplified version of the crash algorithm
+            // The lower the number, the more likely it is to crash (but never below minCrashPoint)
+            const r = Math.random();
+            const e = 1 - config.houseEdge;
+            const crashPoint = Math.max(config.minCrashPoint, (e / (1 - r)) * (1 - config.crashPointVariation + Math.random() * config.crashPointVariation * 2));
+            
+            return Math.min(crashPoint, config.maxCrashPoint);
+        }
+
+        // Generate a smooth crash path
+        function generateCrashPath(crashPoint) {
+            const path = [];
+            const durationFactor = Math.min(1 + (crashPoint / 10), 2); // Longer games for higher multipliers
+            
+            // Generate points with easing function for smoother curve
+            for (let i = 0; i < config.graphPoints; i++) {
+                const t = i / (config.graphPoints - 1);
+                const progress = Math.min(t * durationFactor, 1);
+                
+                // Use easing function for more natural growth
+                const easedProgress = easeOutQuad(progress);
+                
+                // Calculate multiplier at this point
+                let multiplier;
+                if (progress < 1) {
+                    // Before crash point
+                    multiplier = 1 + (crashPoint - 1) * easedProgress;
+                } else {
+                    // At crash point
+                    multiplier = crashPoint;
+                }
+                
+                path.push(multiplier);
+            }
+            
+            return path;
+        }
+
+        // Easing function for smooth animation
+        function easeOutQuad(t) {
+            return t * (2 - t);
+        }
+
+        // Update the multiplier display
+        function updateMultiplierDisplay() {
+            if (state.gameState === 'waiting') {
+                elements.multiplier.textContent = 'GET READY';
+                elements.multiplier.style.backgroundColor = '#f8c537';
+                elements.multiplier.style.color = '#222';
+            } else if (state.gameState === 'counting') {
+                // Handled in countdown function
+            } else {
+                elements.multiplier.textContent = state.currentMultiplier.toFixed(2) + 'x';
+                
+                // Change color based on multiplier
+                if (state.currentMultiplier >= 5) {
+                    elements.multiplier.style.backgroundColor = '#2ecc71';
+                    elements.multiplier.style.color = '#f9f9f9';
+                } else if (state.currentMultiplier >= 2) {
+                    elements.multiplier.style.backgroundColor = '#f8c537';
+                    elements.multiplier.style.color = '#222';
+                } else {
+                    elements.multiplier.style.backgroundColor = '#f8c537';
+                    elements.multiplier.style.color = '#222';
+                }
+            }
+        }
+
+        // Update the graph display
+        function updateGraph() {
+            const width = elements.graph.offsetWidth;
+            const height = elements.graph.offsetHeight;
+            const maxMultiplier = Math.max(10, state.crashPoint * 1.5); // Show up to 10x or 1.5x crash point
+            
+            // Clear previous path
+            elements.path.innerHTML = '';
+            
+            // Create new path
+            let pathData = '';
+            const pointsToShow = Math.min(
+                Math.floor(config.graphPoints * (state.elapsedTime / config.gameDuration)), 
+                config.graphPoints
+            );
+            
+            for (let i = 0; i < pointsToShow; i++) {
+                const x = (i / (config.graphPoints - 1)) * width;
+                const y = height - (state.crashPath[i] / maxMultiplier) * height;
+                
+                if (i === 0) {
+                    pathData += `M ${x} ${y}`;
+                } else {
+                    pathData += ` L ${x} ${y}`;
+                }
+            }
+            
+            const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            pathElement.setAttribute('d', pathData);
+            elements.path.appendChild(pathElement);
+        }
+
+        // Place a bet
+        function placeBet() {
+            if (state.gameState !== 'waiting' && state.gameState !== 'counting') return;
+            if (state.currentBet <= 0 || state.currentBet > state.balance) return;
+            if (state.userBet) return; // Already have a bet
+            
+            state.balance -= state.currentBet;
+            state.userBet = {
+                amount: state.currentBet,
+                cashedOut: false,
+                crashed: false,
+                cashoutMultiplier: 0
+            };
+            state.bets.push(state.userBet);
+            
+            updateUI();
+            updateBetsList();
+        }
+
+        // Cash out
+        function cashout() {
+            if (state.gameState !== 'flying') return;
+            if (!state.userBet || state.userBet.cashedOut) return;
+            
+            const winAmount = Math.floor(state.userBet.amount * state.currentMultiplier);
+            state.balance += winAmount;
+            
+            state.userBet.cashedOut = true;
+            state.userBet.cashoutMultiplier = state.currentMultiplier;
+            
+            // Show win animation for big wins
+            if (winAmount >= state.userBet.amount * 2) {
+                showWin(winAmount);
+            }
+            
+            updateUI();
+            updateBetsList();
+        }
+
+        // Generate random history
+        function generateHistory() {
+            for (let i = 0; i < config.historySize; i++) {
+                const crashPoint = Math.max(config.minCrashPoint, 
+                    (1 / (1 - Math.random())) * (1 - config.houseEdge) * (0.7 + Math.random() * 0.6));
+                addToHistory(Math.min(crashPoint, config.maxCrashPoint));
+            }
+        }
+
+        // Add result to history
+        function addToHistory(crashPoint) {
+            state.history.unshift(crashPoint);
+            if (state.history.length > config.historySize) {
+                state.history.pop();
+            }
+            
+            updateHistoryDisplay();
+        }
+
+        // Update history display
+        function updateHistoryDisplay() {
+            elements.history.innerHTML = '';
+            
+            state.history.forEach((multiplier, index) => {
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                item.textContent = multiplier.toFixed(2) + 'x';
+                
+                if (multiplier >= 2) {
+                    item.classList.add('green');
+                } else {
+                    item.classList.add('red');
+                }
+                
+                elements.history.appendChild(item);
+            });
+        }
+
+        // Update bets list
+        function updateBetsList() {
+            elements.betsList.innerHTML = '';
+            
+            // Show only active bets (not cashed out or crashed)
+            const activeBets = state.bets.filter(bet => !bet.cashedOut && !bet.crashed);
+            
+            if (activeBets.length === 0) {
+                const emptyMsg = document.createElement('div');
+                emptyMsg.textContent = 'No active bets';
+                emptyMsg.style.textAlign = 'center';
+                emptyMsg.style.padding = '1rem';
+                emptyMsg.style.opacity = '0.7';
+                elements.betsList.appendChild(emptyMsg);
+                return;
+            }
+            
+            activeBets.forEach(bet => {
+                const betItem = document.createElement('div');
+                betItem.className = 'bet-item';
+                
+                const userSpan = document.createElement('span');
+                userSpan.className = 'user';
+                userSpan.textContent = 'You';
+                
+                const multiplierSpan = document.createElement('span');
+                multiplierSpan.className = 'multiplier';
+                multiplierSpan.textContent = state.currentMultiplier.toFixed(2) + 'x';
+                
+                betItem.appendChild(userSpan);
+                betItem.appendChild(multiplierSpan);
+                elements.betsList.appendChild(betItem);
+            });
+        }
+
+        // Show win animation
+        function showWin(amount) {
+            elements.winMessage.textContent = "WINNER!";
+            elements.winAmount.textContent = `$${amount}`;
+            elements.winAnimation.classList.add('show');
+            
+            setTimeout(() => {
+                elements.winAnimation.classList.remove('show');
+            }, 2000);
+        }
+
+        // Update the UI
+        function updateUI() {
+            elements.balance.textContent = state.balance;
+            elements.betAmount.value = state.currentBet;
+            
+            // Update quick bet buttons state
+            elements.halfBtn.disabled = state.currentBet <= 1;
+            elements.doubleBtn.disabled = state.currentBet * 2 > state.balance;
+            elements.maxBtn.disabled = state.balance <= 0;
+            
+            // Update action buttons state
+            elements.placeBetBtn.disabled = (
+                state.gameState !== 'waiting' && 
+                state.gameState !== 'counting'
+            ) || state.currentBet > state.balance || state.userBet !== null;
+            
+            elements.cashoutBtn.disabled = (
+                state.gameState !== 'flying' || 
+                !state.userBet || 
+                state.userBet.cashedOut
+            );
+            
+            // Update auto cashout input
+            elements.autoCashoutValue.disabled = !state.autoCashoutEnabled;
+        }
+
+        // Set bet amount
+        function setBetAmount(amount) {
+            amount = parseInt(amount);
+            if (isNaN(amount)) amount = 10;
+            amount = Math.max(1, Math.min(amount, state.balance));
+            state.currentBet = amount;
+            updateUI();
+        }
+
+        // Set up event listeners
+        function setupEventListeners() {
+            // Bet amount input
+            elements.betAmount.addEventListener('input', function() {
+                setBetAmount(this.value);
+            });
+            
+            elements.betAmount.addEventListener('blur', function() {
+                if (this.value === '') {
+                    this.value = state.currentBet;
+                }
+            });
+            
+            // Quick bet buttons
+            elements.halfBtn.addEventListener('click', function() {
+                setBetAmount(Math.max(1, Math.floor(state.currentBet / 2)));
+            });
+            
+            elements.doubleBtn.addEventListener('click', function() {
+                setBetAmount(Math.min(state.balance, state.currentBet * 2));
+            });
+            
+            elements.maxBtn.addEventListener('click', function() {
+                setBetAmount(state.balance);
+            });
+            
+            // Action buttons
+            elements.placeBetBtn.addEventListener('click', placeBet);
+            elements.cashoutBtn.addEventListener('click', cashout);
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    if (state.gameState === 'waiting' || state.gameState === 'counting') {
+                        placeBet();
+                    } else if (state.gameState === 'flying' && state.userBet && !state.userBet.cashedOut) {
+                        cashout();
+                    }
+                }
+            });
+            
+            // Auto cashout
+            elements.autoCashoutCheck.addEventListener('change', function() {
+                state.autoCashoutEnabled = this.checked;
+                updateUI();
+            });
+            
+            elements.autoCashoutValue.addEventListener('input', function() {
+                state.autoCashoutValue = parseFloat(this.value);
+                if (isNaN(state.autoCashoutValue)) {
+                    state.autoCashoutValue = 2.0;
+                    this.value = '2.0';
+                }
+                state.autoCashoutValue = Math.max(1.1, Math.min(100, state.autoCashoutValue));
+            });
+        }
+
+        // Initialize the game when DOM is loaded
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>

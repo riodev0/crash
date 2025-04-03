@@ -3,7 +3,7 @@ const admin = require('firebase-admin');
 const cors = require('cors')({
   origin: [
     'https://riodev0.github.io',
-    'https://riodev0.github.io/TB-Crash',
+    'https://riodev0.github.io/crash',
     'http://localhost:3000',
     'http://127.0.0.1:3000'
   ],

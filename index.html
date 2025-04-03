@@ -136,24 +136,6 @@
             cursor: pointer;
         }
         
-        .auto-cashout {
-            margin: 1rem 0;
-        }
-        
-        .auto-cashout-input {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .auto-cashout-input input {
-            flex: 1;
-        }
-        
-        .auto-cashout-input span {
-            white-space: nowrap;
-        }
-        
         .action-buttons {
             display: flex;
             gap: 1rem;
@@ -308,19 +290,11 @@
         
         <div class="bet-controls">
             <div class="input-group">
-                <input type="number" id="bet-amount" placeholder="Bet amount" min="1" step="0.01">
+                <input type="number" id="bet-amount" placeholder="Bet amount" min="1">
                 <div class="quick-bets">
                     <button class="quick-bet" data-action="half">½</button>
                     <button class="quick-bet" data-action="double">2x</button>
                     <button class="quick-bet" data-action="max">MAX</button>
-                </div>
-            </div>
-            
-            <div class="auto-cashout">
-                <label>Auto Cashout</label>
-                <div class="auto-cashout-input">
-                    <input type="number" id="auto-cashout" placeholder="1.50" min="1.01" step="0.01">
-                    <span>x</span>
                 </div>
             </div>
             
@@ -403,13 +377,11 @@
         let gameInterval = null;
         let graphInterval = null;
         let startTime = 0;
-        let autoCashoutValue = 0;
         
         // DOM Elements
         const balanceEl = document.getElementById('balance');
         const multiplierEl = document.getElementById('multiplier');
         const betAmountEl = document.getElementById('bet-amount');
-        const autoCashoutEl = document.getElementById('auto-cashout');
         const placeBetBtn = document.getElementById('place-bet');
         const cashOutBtn = document.getElementById('cash-out');
         const historyList = document.getElementById('history-list');
@@ -424,20 +396,6 @@
         const referralBtn = document.getElementById('referral-btn');
         const copyBtn = document.getElementById('copy-btn');
         const graphLine = document.getElementById('graph-line');
-        
-        // Format numbers to 2 decimal places and abbreviate
-        function formatNumber(num) {
-            // Round to 2 decimal places
-            num = parseFloat(num.toFixed(2));
-            
-            if (num >= 1000000) {
-                return (num / 1000000).toFixed(2) + 'M';
-            }
-            if (num >= 1000) {
-                return (num / 1000).toFixed(2) + 'K';
-            }
-            return num.toFixed(2);
-        }
         
         // Auth State Listener
         auth.onAuthStateChanged(async user => {
@@ -456,13 +414,13 @@
         async function loadUserData() {
             const doc = await db.collection('users').doc(currentUser.uid).get();
             userData = doc.data();
-            balanceEl.textContent = formatNumber(userData.balance);
+            balanceEl.textContent = userData.balance;
             
             // Set referral data
             if (userData.referralCode) {
                 userReferralCodeEl.value = userData.referralCode;
                 referralCountEl.textContent = userData.referrals?.length || 0;
-                referralEarningsEl.textContent = formatNumber(userData.referralEarnings || 0);
+                referralEarningsEl.textContent = userData.referralEarnings || 0;
             }
         }
         
@@ -479,8 +437,8 @@
                 const item = document.createElement('div');
                 item.className = 'history-item';
                 item.innerHTML = `
-                    <span>${parseFloat(game.multiplier).toFixed(2)}x</span>
-                    <span>$${formatNumber(game.bet)}</span>
+                    <span>${game.multiplier}x</span>
+                    <span>$${game.bet}</span>
                 `;
                 historyList.appendChild(item);
             });
@@ -488,9 +446,9 @@
         
         // Game Logic
         function calculateCrashPoint() {
-            // Faster crash algorithm with higher volatility
-            const e = 100 / (1 + Math.random() * 5); // More likely to crash sooner
-            return Math.max(1, parseFloat(e.toFixed(2)));
+            // Simplified crash algorithm
+            const e = 100 / (1 + Math.random() * 10);
+            return Math.max(1, e.toFixed(2));
         }
         
         function startGame() {
@@ -499,41 +457,27 @@
             crashPoint = calculateCrashPoint();
             startTime = Date.now();
             
-            // Get auto cashout value
-            autoCashoutValue = parseFloat(autoCashoutEl.value) || 0;
-            if (autoCashoutValue > 0 && autoCashoutValue < 1.01) {
-                autoCashoutValue = 1.01;
-                autoCashoutEl.value = "1.01";
-            }
-            
             placeBetBtn.disabled = true;
             cashOutBtn.disabled = false;
             
             // Start multiplier animation
-            gameInterval = setInterval(updateMultiplier, 30); // Faster update interval
+            gameInterval = setInterval(updateMultiplier, 50);
             
             // Start graph animation
             graphLine.style.height = '0%';
-            graphInterval = setInterval(updateGraph, 30);
+            graphInterval = setInterval(updateGraph, 50);
         }
         
         function updateMultiplier() {
             const elapsed = (Date.now() - startTime) / 1000;
-            // Faster multiplier growth
-            currentMultiplier = 1 + (elapsed * 0.1); // Increased from 0.05 to 0.1
-            
-            // Check auto cashout
-            if (autoCashoutValue > 0 && currentMultiplier >= autoCashoutValue) {
-                endGame(true);
-                return;
-            }
+            currentMultiplier = 1 + (elapsed * 0.05);
             
             if (currentMultiplier >= crashPoint) {
                 endGame(false);
                 return;
             }
             
-            multiplierEl.textContent = parseFloat(currentMultiplier).toFixed(2) + 'x';
+            multiplierEl.textContent = currentMultiplier.toFixed(2) + 'x';
         }
         
         function updateGraph() {
@@ -554,17 +498,17 @@
             gameActive = false;
             
             const multiplier = cashedOut ? currentMultiplier : 1;
-            const winnings = parseFloat((currentBet * multiplier).toFixed(2));
+            const winnings = currentBet * multiplier;
             
             // Update balance
             db.collection('users').doc(currentUser.uid).update({
-                balance: firebase.firestore.FieldValue.increment(parseFloat((winnings - currentBet).toFixed(2)))
+                balance: firebase.firestore.FieldValue.increment(winnings - currentBet)
             });
             
             // Save game result
             db.collection('games').add({
-                bet: parseFloat(currentBet.toFixed(2)),
-                multiplier: parseFloat(multiplier.toFixed(2)),
+                bet: currentBet,
+                multiplier: multiplier.toFixed(2),
                 cashedOut: cashedOut,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             });
@@ -585,7 +529,7 @@
             const betAmount = parseFloat(betAmountEl.value);
             
             if (isNaN(betAmount) || betAmount < 1) {
-                alert('Please enter a valid bet amount (minimum 1)');
+                alert('Please enter a valid bet amount');
                 return;
             }
             
@@ -594,8 +538,7 @@
                 return;
             }
             
-            currentBet = parseFloat(betAmount.toFixed(2));
-            betAmountEl.value = currentBet.toFixed(2);
+            currentBet = betAmount;
             startGame();
         });
         
@@ -612,30 +555,18 @@
                 
                 switch(action) {
                     case 'half':
-                        newAmount = Math.floor(newAmount / 2 * 100) / 100;
+                        newAmount = Math.floor(newAmount / 2);
                         break;
                     case 'double':
-                        newAmount = Math.floor(newAmount * 2 * 100) / 100;
+                        newAmount = newAmount * 2;
                         break;
                     case 'max':
-                        newAmount = Math.floor(userData.balance * 100) / 100;
+                        newAmount = userData.balance;
                         break;
                 }
                 
-                betAmountEl.value = newAmount.toFixed(2);
+                betAmountEl.value = newAmount;
             });
-        });
-        
-        // Auto cashout input validation
-        autoCashoutEl.addEventListener('change', () => {
-            let value = parseFloat(autoCashoutEl.value);
-            if (isNaN(value) {
-                autoCashoutEl.value = "";
-                return;
-            }
-            
-            value = Math.max(1.01, value);
-            autoCashoutEl.value = value.toFixed(2);
         });
         
         // Account Modal

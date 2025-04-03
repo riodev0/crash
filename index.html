@@ -1078,7 +1078,20 @@
         }
 
         // Initialize the game when DOM is loaded
-        document.addEventListener('DOMContentLoaded', init);
+      document.addEventListener('DOMContentLoaded', function() {
+    // First define all functions
+    function init() {
+        updateUI();
+        setupEventListeners();
+        generateHistory();
+        startWaitingPhase();
+        initAuth();
+        showLoginNotification();
+    }
+
+    // Then call init
+    init();
+});
     </script>
 </body>
 </html>

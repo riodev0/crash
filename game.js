@@ -13,6 +13,12 @@ const app = firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+// Enable Firestore persistence for better offline support
+db.enablePersistence()
+  .catch((err) => {
+    console.log("Persistence failed: ", err);
+  });
+
 // Game State
 let user = null;
 let balance = 0;
@@ -30,86 +36,108 @@ const cashoutBtn = document.getElementById('cashoutBtn');
 const multiplierDisplay = document.getElementById('multiplierDisplay');
 const gameMessage = document.getElementById('gameMessage');
 const historyList = document.getElementById('historyList');
+const usernameEl = document.getElementById('username');
 
-// Initialize Auth
+// Initialize Auth with GitHub Pages compatible settings
 auth.onAuthStateChanged(async (authUser) => {
   if (authUser) {
     user = authUser;
+    usernameEl.textContent = user.email;
     await initializeUser(user.uid);
     loadGameHistory();
   } else {
-    window.location.href = '/login.html';
+    // Handle GitHub Pages routing - adjust if your login page has a different path
+    if (!window.location.pathname.includes('login.html')) {
+      window.location.href = '/TB-Crash/login.html';
+    }
   }
 });
 
-// Initialize User
+// Initialize User with error handling
 async function initializeUser(uid) {
-  const userRef = db.collection('users').doc(uid);
-  const doc = await userRef.get();
-  
-  if (!doc.exists) {
-    await userRef.set({
-      balance: 1000.00,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    balance = 1000.00;
-  } else {
-    balance = doc.data().balance;
+  try {
+    const userRef = db.collection('users').doc(uid);
+    const doc = await userRef.get();
+    
+    if (!doc.exists) {
+      await userRef.set({
+        balance: 1000.00,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        lastLogin: new Date().toISOString()
+      });
+      balance = 1000.00;
+    } else {
+      balance = doc.data().balance;
+      // Update last login time
+      await userRef.update({
+        lastLogin: new Date().toISOString()
+      });
+    }
+    updateBalanceDisplay();
+  } catch (error) {
+    console.error("User init failed:", error);
+    showMessage('Failed to load user data', 'error');
   }
-  updateBalanceDisplay();
 }
 
-// Place Bet
+// Enhanced Place Bet function with GitHub Pages compatibility
 async function placeBet() {
-  const amount = parseFloat(betAmountEl.value);
-  
   if (!user) {
     showMessage('Please sign in to place bets', 'error');
     return;
   }
-  
-  if (isNaN(amount) || amount <= 0 || amount > balance) {
-    showMessage('Invalid bet amount', 'error');
+
+  const amount = parseFloat(betAmountEl.value);
+  if (isNaN(amount) || amount <= 0) {
+    showMessage('Please enter a valid amount', 'error');
     return;
   }
 
+  if (amount > balance) {
+    showMessage('Insufficient balance', 'error');
+    return;
+  }
+
+  placeBetBtn.disabled = true;
+  showMessage('Processing bet...', 'success');
+
   try {
-    placeBetBtn.disabled = true;
-    showMessage('Placing bet...', 'success');
-    
-    // Create bet
+    // Create bet document with additional metadata
     const betRef = await db.collection('crashBets').add({
       userId: user.uid,
       amount: amount,
       status: 'pending',
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      clientTimestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent
     });
     
     currentBet = { id: betRef.id, amount };
     
-    // Deduct balance
-    await db.collection('users').doc(user.uid).update({
-      balance: firebase.firestore.FieldValue.increment(-amount)
+    // Update balance using transaction
+    await db.runTransaction(async (transaction) => {
+      const userRef = db.collection('users').doc(user.uid);
+      const doc = await transaction.get(userRef);
+      const newBalance = doc.data().balance - amount;
+      transaction.update(userRef, { balance: newBalance });
+      balance = newBalance;
+      updateBalanceDisplay();
     });
-    balance -= amount;
-    updateBalanceDisplay();
-    
-    // Start game
+
     await startNewGame();
-    
   } catch (error) {
-    console.error("Bet failed:", error);
+    console.error("Bet placement failed:", error);
     showMessage('Bet failed: ' + error.message, 'error');
     placeBetBtn.disabled = false;
   }
 }
 
-// Start New Game
+// Start New Game with CORS handling
 async function startNewGame() {
   try {
     const token = await auth.currentUser.getIdToken();
     
-    // Create game
+    // Create game with enhanced error handling
     const createResponse = await fetch('https://us-central1-tbgames-d6995.cloudfunctions.net/createCrashGame', {
       method: 'POST',
       headers: {
@@ -117,42 +145,30 @@ async function startNewGame() {
         'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
-        clientSeed: Date.now().toString()
+        clientSeed: Date.now().toString(),
+        origin: window.location.origin
       })
     });
-    
-    if (!createResponse.ok) throw new Error('Failed to create game');
-    
+
+    if (!createResponse.ok) {
+      const errorData = await createResponse.json();
+      throw new Error(errorData.error || 'Failed to create game');
+    }
+
     const createData = await createResponse.json();
     currentGame = createData.gameId;
     
-    // Start game after 5s
-    setTimeout(async () => {
-      try {
-        const startResponse = await fetch('https://us-central1-tbgames-d6995.cloudfunctions.net/startCrashGame', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            gameId: currentGame
-          })
-        });
-        
-        if (!startResponse.ok) throw new Error('Failed to start game');
-        
-        const startData = await startResponse.json();
-        crashPoint = parseFloat(startData.crashPoint);
-        runGameLoop();
-        
-      } catch (error) {
-        console.error("Game start failed:", error);
-        showMessage('Game start failed: ' + error.message, 'error');
-        resetGame();
+    // Start countdown with visual feedback
+    let countdown = 5;
+    const countdownInterval = setInterval(() => {
+      showMessage(`Game starting in ${countdown}...`, 'success');
+      countdown--;
+      if (countdown < 0) {
+        clearInterval(countdownInterval);
+        startGameRound(token);
       }
-    }, 5000);
-    
+    }, 1000);
+
   } catch (error) {
     console.error("Game creation failed:", error);
     showMessage('Game creation failed: ' + error.message, 'error');
@@ -160,15 +176,46 @@ async function startNewGame() {
   }
 }
 
-// Run Game Loop
+// Start game round after countdown
+async function startGameRound(token) {
+  try {
+    const startResponse = await fetch('https://us-central1-tbgames-d6995.cloudfunctions.net/startCrashGame', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        gameId: currentGame,
+        origin: window.location.origin
+      })
+    });
+
+    if (!startResponse.ok) {
+      const errorData = await startResponse.json();
+      throw new Error(errorData.error || 'Failed to start game');
+    }
+
+    const startData = await startResponse.json();
+    crashPoint = parseFloat(startData.crashPoint);
+    runGameLoop();
+  } catch (error) {
+    console.error("Game start failed:", error);
+    showMessage('Game start failed: ' + error.message, 'error');
+    resetGame();
+  }
+}
+
+// Run Game Loop with smooth animation
 function runGameLoop() {
   let startTime = Date.now();
   let crashed = false;
+  let animationFrameId;
   
   gameMessage.textContent = 'Game in progress!';
   cashoutBtn.disabled = false;
   
-  gameInterval = setInterval(() => {
+  function gameFrame() {
     const elapsed = (Date.now() - startTime) / 1000;
     const multiplier = Math.min(crashPoint, 1 + (elapsed * 0.05));
     
@@ -185,41 +232,68 @@ function runGameLoop() {
     if (multiplier >= crashPoint && !crashed) {
       crashed = true;
       endGame(false);
+      return;
     }
-  }, 50);
+    
+    animationFrameId = requestAnimationFrame(gameFrame);
+  }
+  
+  gameFrame();
+  
+  // Store the animation frame ID for cleanup
+  gameInterval = animationFrameId;
 }
 
-// Cash Out
+// Cash Out with confirmation
 async function cashout() {
   if (!gameInterval) return;
   
-  clearInterval(gameInterval);
+  // Cancel the animation frame
+  cancelAnimationFrame(gameInterval);
+  
   const multiplier = parseFloat(multiplierDisplay.textContent);
+  const winAmount = currentBet.amount * multiplier;
+  
+  if (!confirm(`Cash out at ${multiplier.toFixed(2)}x for $${winAmount.toFixed(2)}?`)) {
+    // Continue game if user cancels
+    runGameLoop();
+    return;
+  }
+  
   await endGame(true, multiplier);
 }
 
-// End Game
+// End Game with complete cleanup
 async function endGame(didCashout, multiplier) {
   try {
     const winAmount = didCashout ? currentBet.amount * multiplier : 0;
     
-    // Update bet
+    // Update bet document with result
     await db.collection('crashBets').doc(currentBet.id).update({
       status: didCashout ? 'cashedout' : 'crashed',
       cashoutMultiplier: didCashout ? multiplier : null,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      resultAmount: didCashout ? winAmount : -currentBet.amount
     });
     
-    // Update balance if won
+    // Update balance if cashed out
     if (didCashout) {
-      await db.collection('users').doc(user.uid).update({
-        balance: firebase.firestore.FieldValue.increment(winAmount)
+      await db.runTransaction(async (transaction) => {
+        const userRef = db.collection('users').doc(user.uid);
+        const doc = await transaction.get(userRef);
+        const newBalance = doc.data().balance + winAmount;
+        transaction.update(userRef, { balance: newBalance });
+        balance = newBalance;
+        updateBalanceDisplay();
       });
-      balance += winAmount;
-      updateBalanceDisplay();
+      
       showMessage(`Cashed out at ${multiplier.toFixed(2)}x! Won $${winAmount.toFixed(2)}`, 'success');
+      
+      // Play cashout sound
+      playSound('cashout');
     } else {
       showMessage(`Crashed at ${crashPoint.toFixed(2)}x`, 'error');
+      playSound('crash');
     }
     
     // Add to history
@@ -227,13 +301,13 @@ async function endGame(didCashout, multiplier) {
     
   } catch (error) {
     console.error("Game end failed:", error);
-    showMessage('Game end failed', 'error');
+    showMessage('Game end failed. Please refresh the page.', 'error');
   } finally {
     resetGame();
   }
 }
 
-// Load Game History
+// Load Game History with pagination
 async function loadGameHistory() {
   if (!user) return;
   
@@ -246,6 +320,11 @@ async function loadGameHistory() {
     
     historyList.innerHTML = '';
     
+    if (snapshot.empty) {
+      historyList.innerHTML = '<div class="history-item">No games played yet</div>';
+      return;
+    }
+    
     snapshot.forEach(doc => {
       const data = doc.data();
       const date = data.createdAt?.toDate?.() || new Date();
@@ -254,7 +333,24 @@ async function loadGameHistory() {
     
   } catch (error) {
     console.error("Failed to load history:", error);
-    historyList.innerHTML = '<div class="history-item error">Failed to load history</div>';
+    if (error.code === 'failed-precondition') {
+      historyList.innerHTML = '<div class="history-item error">Please create a Firestore index</div>';
+    } else {
+      historyList.innerHTML = '<div class="history-item error">Failed to load history</div>';
+    }
+  }
+}
+
+// Simple sound effects for GitHub Pages
+function playSound(type) {
+  if (type === 'cashout') {
+    const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3');
+    audio.volume = 0.3;
+    audio.play().catch(e => console.log("Audio play failed:", e));
+  } else if (type === 'crash') {
+    const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-explosion-hit-1694.mp3');
+    audio.volume = 0.2;
+    audio.play().catch(e => console.log("Audio play failed:", e));
   }
 }
 
@@ -275,16 +371,14 @@ function addToHistory(won, multiplier, date) {
     <span>${won ? 'Cashed out' : 'Crashed'} at ${multiplier.toFixed(2)}x</span>
     <span>${date.toLocaleTimeString()}</span>
   `;
-  historyList.prepend(historyItem);
-  
-  // Keep only last 10 items
-  if (historyList.children.length > 10) {
-    historyList.removeChild(historyList.lastChild);
-  }
+  historyList.appendChild(historyItem);
 }
 
 function resetGame() {
-  clearInterval(gameInterval);
+  if (gameInterval) {
+    cancelAnimationFrame(gameInterval);
+  }
+  
   currentGame = null;
   currentBet = null;
   gameInterval = null;
@@ -300,6 +394,52 @@ function resetGame() {
   }, 3000);
 }
 
-// Event Listeners
-placeBetBtn.addEventListener('click', placeBet);
-cashoutBtn.addEventListener('click', cashout);
+// Event Listeners with debouncing
+placeBetBtn.addEventListener('click', () => {
+  placeBetBtn.disabled = true;
+  setTimeout(() => placeBetBtn.disabled = false, 1000);
+  placeBet();
+});
+
+cashoutBtn.addEventListener('click', () => {
+  cashoutBtn.disabled = true;
+  setTimeout(() => cashoutBtn.disabled = false, 1000);
+  cashout();
+});
+
+// Quick bet buttons
+document.querySelectorAll('.bet-button').forEach(button => {
+  button.addEventListener('click', (e) => {
+    const action = e.target.dataset.action;
+    if (action === 'half') adjustBet(0.5);
+    else if (action === 'double') adjustBet(2);
+    else if (action === 'max') adjustBet('max');
+    else if (action === 'clear') clearBet();
+  });
+});
+
+// Adjust bet amount
+function adjustBet(multiplier) {
+  const current = parseFloat(betAmountEl.value) || 0;
+  if (multiplier === 'max') {
+    betAmountEl.value = balance.toFixed(2);
+  } else {
+    betAmountEl.value = Math.min(balance, current * multiplier).toFixed(2);
+  }
+}
+
+// Clear bet amount
+function clearBet() {
+  betAmountEl.value = '';
+}
+
+// Initialize the game
+window.addEventListener('DOMContentLoaded', () => {
+  // Check if user is returning from authentication
+  if (window.location.hash.includes('access_token')) {
+    // Handle Firebase auth redirect
+    auth.getRedirectResult().then(() => {
+      window.location.hash = '';
+    });
+  }
+});

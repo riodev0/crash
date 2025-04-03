@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crash Game V2</title>
+    <title>Crash Game</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -487,6 +487,27 @@
             text-align: center;
             font-weight: bold;
         }
+
+        .login-notification {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--secondary);
+            color: var(--black);
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            font-weight: bold;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            z-index: 1000;
+            display: none;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { bottom: -100px; opacity: 0; }
+            to { bottom: 20px; opacity: 1; }
+        }
         
         /* Responsive adjustments */
         @media (max-width: 768px) {
@@ -528,10 +549,20 @@
                 padding: 0.4rem 0.8rem;
                 font-size: 0.8rem;
             }
+
+            .login-notification {
+                width: 90%;
+                text-align: center;
+                padding: 0.8rem;
+            }
         }
     </style>
 </head>
 <body>
+    <div class="login-notification" id="login-notification">
+        Please login to save your data!
+    </div>
+    
     <header>
         <div class="account-menu">
             <button class="account-btn" id="account-btn">
@@ -695,8 +726,19 @@
             accountDropdown: document.getElementById('account-dropdown'),
             usernameDisplay: document.getElementById('username-display'),
             authBtn: document.getElementById('auth-btn'),
-            settingsBtn: document.getElementById('settings-btn')
+            settingsBtn: document.getElementById('settings-btn'),
+            loginNotification: document.getElementById('login-notification')
         };
+
+        // Show login notification
+        function showLoginNotification() {
+            if (!state.user) {
+                elements.loginNotification.style.display = 'block';
+                setTimeout(() => {
+                    elements.loginNotification.style.display = 'none';
+                }, 5000);
+            }
+        }
 
         // Initialize the game
         function init() {
@@ -705,6 +747,7 @@
             generateHistory();
             startWaitingPhase();
             initAuth();
+            showLoginNotification();
         }
 
         // Initialize authentication
@@ -744,6 +787,7 @@
                     state.userData = doc.data();
                     state.isNewUser = false;
                     state.balance = state.userData.balance || config.initialBalance;
+                    updateUI();
                 } else {
                     await db.collection('users').doc(userId).set({
                         balance: config.initialBalance,
@@ -752,6 +796,7 @@
                     });
                     state.balance = config.initialBalance;
                     state.isNewUser = true;
+                    updateUI();
                 }
             } catch (error) {
                 console.error("Error loading user data:", error);
@@ -760,7 +805,10 @@
 
         // Update user balance in Firestore
         async function updateUserBalance(newBalance) {
-            if (!state.user) return;
+            if (!state.user) {
+                showLoginNotification();
+                return;
+            }
             
             try {
                 await db.collection('users').doc(state.user.uid).update({
@@ -869,6 +917,7 @@
             
             updateMultiplierDisplay();
             updateGraph();
+            updateBetsList(); // Update bet display during flight
             
             // Continue animation
             state.animationFrame = requestAnimationFrame(animateFlight);
@@ -1011,52 +1060,80 @@
 
         // Place a bet
         async function placeBet() {
-        if (!state.user) {
-            alert("Please login to play");
-            return;
+            if (!state.user) {
+                alert("Please login to play");
+                showLoginNotification();
+                return;
+            }
+            
+            if (state.gameState !== 'waiting' && state.gameState !== 'counting') {
+                alert("Cannot place bet now - wait for next round");
+                return;
+            }
+            
+            if (state.currentBet <= 0 || state.currentBet > state.balance) {
+                alert("Invalid bet amount");
+                return;
+            }
+            
+            if (state.userBet) {
+                alert("You already have an active bet");
+                return;
+            }
+            
+            // Deduct bet amount from balance
+            const newBalance = state.balance - state.currentBet;
+            state.balance = newBalance;
+            await updateUserBalance(newBalance);
+            
+            // Create new bet
+            state.userBet = {
+                amount: state.currentBet,
+                cashedOut: false,
+                crashed: false,
+                cashoutMultiplier: 0
+            };
+            state.bets.push(state.userBet);
+            
+            updateUI();
+            updateBetsList();
+            
+            // Show confirmation
+            console.log(`Bet placed: $${state.currentBet}`);
         }
-        
-        if (state.gameState !== 'waiting' && state.gameState !== 'counting') return;
-        if (state.currentBet <= 0 || state.currentBet > state.balance) return;
-        if (state.userBet) return; // Already have a bet
-        
-        const newBalance = state.balance - state.currentBet;
-        state.balance = newBalance; // Update local state immediately
-        await updateUserBalance(newBalance); // Save to Firestore
-        
-        state.userBet = {
-            amount: state.currentBet,
-            cashedOut: false,
-            crashed: false,
-            cashoutMultiplier: 0
-        };
-        state.bets.push(state.userBet);
-        
-        updateUI();
-        updateBetsList();
-    }
 
-    // Modified cashout function
-    async function cashout() {
-        if (state.gameState !== 'flying') return;
-        if (!state.userBet || state.userBet.cashedOut) return;
-        
-        const winAmount = Math.floor(state.userBet.amount * state.currentMultiplier);
-        const newBalance = state.balance + winAmount;
-        state.balance = newBalance; // Update local state immediately
-        await updateUserBalance(newBalance); // Save to Firestore
-        
-        state.userBet.cashedOut = true;
-        state.userBet.cashoutMultiplier = state.currentMultiplier;
-        
-        // Show win animation for big wins
-        if (winAmount >= state.userBet.amount * 2) {
-            showWin(winAmount);
+        // Cash out
+        async function cashout() {
+            if (state.gameState !== 'flying') {
+                alert("Cannot cash out now");
+                return;
+            }
+            
+            if (!state.userBet || state.userBet.cashedOut) {
+                alert("No active bet to cash out");
+                return;
+            }
+            
+            const winAmount = Math.floor(state.userBet.amount * state.currentMultiplier);
+            const newBalance = state.balance + winAmount;
+            state.balance = newBalance;
+            await updateUserBalance(newBalance);
+            
+            // Update bet status
+            state.userBet.cashedOut = true;
+            state.userBet.cashoutMultiplier = state.currentMultiplier;
+            
+            // Show win animation for big wins
+            if (winAmount >= state.userBet.amount * 2) {
+                showWin(winAmount);
+            }
+            
+            updateUI();
+            updateBetsList();
+            
+            // Show confirmation
+            console.log(`Cashed out at ${state.currentMultiplier.toFixed(2)}x - Won $${winAmount}`);
         }
-        
-        updateUI();
-        updateBetsList();
-    }
 
         // Generate random history
         function generateHistory() {
@@ -1105,7 +1182,9 @@
             
             if (activeBets.length === 0) {
                 const emptyMsg = document.createElement('div');
-                emptyMsg.textContent = 'No active bets';
+                emptyMsg.textContent = state.gameState === 'waiting' || state.gameState === 'counting' 
+                    ? 'Waiting for round to start...' 
+                    : 'No active bets';
                 emptyMsg.style.textAlign = 'center';
                 emptyMsg.style.padding = '1rem';
                 emptyMsg.style.opacity = '0.7';

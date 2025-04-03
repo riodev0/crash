@@ -786,53 +786,62 @@
         }
 
         // Modified placeBet function with better error handling
-        async function placeBet() {
-            if (!state.user) {
-                alert("Please login to play");
-                showLoginNotification();
-                return;
-            }
-            
-            if (state.gameState !== 'waiting' && state.gameState !== 'counting') {
-                alert("Cannot place bet now - wait for next round");
-                return;
-            }
-            
-            if (state.currentBet <= 0 || state.currentBet > state.balance) {
-                alert("Invalid bet amount");
-                return;
-            }
-            
-            if (state.userBet) {
-                alert("You already have an active bet");
-                return;
-            }
-            
-            // Deduct bet amount from balance
-            const newBalance = state.balance - state.currentBet;
-            const success = await updateUserBalance(newBalance);
-            
-            if (!success) {
-                alert("Failed to place bet. Please try again.");
-                return;
-            }
-            
-            // Create new bet
-            state.userBet = {
-                amount: state.currentBet,
-                cashedOut: false,
-                crashed: false,
-                cashoutMultiplier: 0,
-                timestamp: Date.now()
-            };
-            state.bets.push(state.userBet);
-            
-            updateUI();
-            updateBetsList();
-            
-            console.log(`Bet placed: $${state.currentBet}`);
-        }
+       async function placeBet() {
+    // Check if user is logged in
+    if (!state.user) {
+        alert("Please login to place bets");
+        showLoginNotification();
+        return;
+    }
 
+    // Validate game state
+    if (state.gameState !== 'waiting' && state.gameState !== 'counting') {
+        alert("Cannot place bet now - wait for next round");
+        return;
+    }
+
+    // Validate bet amount
+    if (state.currentBet <= 0 || state.currentBet > state.balance) {
+        alert(`Invalid bet amount (Balance: $${state.balance})`);
+        return;
+    }
+
+    // Check for existing active bet
+    if (state.userBet) {
+        alert("You already have an active bet for this round");
+        return;
+    }
+
+    try {
+        // Deduct bet amount
+        const newBalance = state.balance - state.currentBet;
+        
+        // Update Firestore
+        await db.collection('users').doc(state.user.uid).update({
+            balance: newBalance
+        });
+
+        // Update local state
+        state.balance = newBalance;
+        state.userBet = {
+            amount: state.currentBet,
+            cashedOut: false,
+            crashed: false,
+            cashoutMultiplier: 0,
+            timestamp: Date.now()
+        };
+        state.bets.push(state.userBet);
+
+        // Update UI
+        updateUI();
+        updateBetsList();
+        
+        console.log(`Bet placed: $${state.currentBet}`);
+    } catch (error) {
+        console.error("Failed to place bet:", error);
+        alert("Failed to place bet. Please try again.");
+    }
+}
         // Modified cashout function with better error handling
         async function cashout() {
             if (state.gameState !== 'flying') {

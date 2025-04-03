@@ -3,283 +3,355 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TB Crash Game V2.922</title>
+    <title>TB Crash</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
             --primary: #00ffcc;
+            --primary-dark: #00cca3;
             --secondary: #ff00aa;
-            --accent: #7700ff;
             --dark: #121212;
             --darker: #0a0a0a;
             --light: #ffffff;
             --gray: #333333;
-            --success: #00cc66;
-            --danger: #ff4444;
+            --light-gray: #444444;
         }
-
+        
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-
+        
         body {
             background-color: var(--dark);
             color: var(--light);
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
         }
-
-        .navbar {
-            width: 100%;
-            max-width: 800px;
-            background: var(--darker);
-            padding: 1rem;
-            border-radius: 10px;
-            margin-bottom: 20px;
+        
+        .nav {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding: 1rem 2rem;
+            background: rgba(30, 30, 30, 0.9);
+            border-bottom: 1px solid var(--gray);
         }
-
-        .account-menu {
-            position: relative;
-        }
-
-        .account-btn {
-            background: var(--gray);
-            padding: 0.5rem 1rem;
-            border-radius: 5px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .game-container {
-            width: 100%;
-            max-width: 800px;
-            background: var(--darker);
-            border-radius: 10px;
-            padding: 2rem;
-            display: flex;
-            flex-direction: column;
-            gap: 2rem;
-        }
-
-        .game-display {
-            background: var(--dark);
-            border-radius: 10px;
-            padding: 2rem;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-            min-height: 200px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .multiplier-display {
-            font-size: 4rem;
-            font-weight: bold;
-            background: linear-gradient(45deg, var(--primary), var(--secondary));
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
-            margin: 1rem 0;
-            text-shadow: 0 0 10px rgba(0,255,204,0.3);
         }
-
-        .bet-panel {
+        
+        .balance {
+            background: var(--gray);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        
+        .account-btn {
+            background: var(--gray);
+            border: none;
+            color: var(--light);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        
+        .game-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        
+        .crash-display {
+            height: 300px;
+            background: var(--darker);
+            border-radius: 16px;
             display: flex;
-            flex-direction: column;
-            gap: 1rem;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
         }
-
-        .balance-card {
-            background: linear-gradient(45deg, var(--primary), var(--accent));
-            padding: 1rem;
-            border-radius: 10px;
-            text-align: center;
+        
+        .multiplier {
+            font-size: 4rem;
+            font-weight: 700;
+            color: var(--primary);
+            z-index: 2;
         }
-
-        .balance-amount {
-            font-size: 1.8rem;
-            font-weight: bold;
+        
+        .graph-line {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 0;
+            background: var(--primary);
+            z-index: 1;
         }
-
+        
         .bet-controls {
-            display: grid;
-            gap: 1rem;
+            background: var(--darker);
+            padding: 1.5rem;
+            border-radius: 16px;
+            margin-bottom: 2rem;
         }
-
+        
+        .input-group {
+            margin-bottom: 1rem;
+        }
+        
         input {
+            width: 100%;
             padding: 1rem;
-            background: var(--dark);
-            border: 2px solid var(--gray);
+            background: var(--gray);
+            border: none;
             border-radius: 8px;
             color: var(--light);
             font-size: 1rem;
-            width: 100%;
         }
-
-        .btn-group {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
+        
+        .quick-bets {
+            display: flex;
             gap: 0.5rem;
+            margin-top: 0.5rem;
         }
-
-        .btn {
+        
+        .quick-bet {
+            flex: 1;
+            padding: 0.5rem;
+            background: var(--gray);
+            border: none;
+            border-radius: 4px;
+            color: var(--light);
+            cursor: pointer;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .btn-bet, .btn-cashout {
+            flex: 1;
             padding: 1rem;
             border: none;
             border-radius: 8px;
-            font-weight: bold;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
         }
-
-        .btn:hover {
-            transform: translateY(-2px);
-        }
-
-        .btn-primary {
+        
+        .btn-bet {
             background: var(--primary);
-            color: var(--darker);
+            color: var(--dark);
         }
-
-        .btn-secondary {
+        
+        .btn-cashout {
             background: var(--secondary);
             color: var(--light);
         }
-
-        .btn-danger {
-            background: var(--danger);
-            color: var(--light);
+        
+        .btn-bet:hover, .btn-cashout:hover {
+            transform: translateY(-2px);
         }
-
-        .history-panel {
-            margin-top: 2rem;
+        
+        .btn-cashout:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
-
+        
+        .history {
+            background: var(--darker);
+            padding: 1.5rem;
+            border-radius: 16px;
+        }
+        
         .history-list {
-            max-height: 200px;
-            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
             margin-top: 1rem;
         }
-
+        
         .history-item {
+            background: var(--gray);
+            padding: 0.75rem;
+            border-radius: 8px;
             display: flex;
             justify-content: space-between;
-            padding: 0.8rem;
-            background: var(--dark);
+        }
+        
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background: var(--darker);
+            padding: 2rem;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 400px;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--light);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        .referral-code {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .referral-code input {
+            flex: 1;
+            background: var(--gray);
+            border: none;
+            padding: 1rem;
             border-radius: 8px;
-            margin-bottom: 0.5rem;
+            color: var(--light);
         }
-
-        .win {
-            color: var(--primary);
+        
+        .btn-copy {
+            background: var(--primary);
+            border: none;
+            padding: 0 1rem;
+            border-radius: 8px;
+            cursor: pointer;
         }
-
-        .lose {
-            color: var(--danger);
+        
+        .referral-stats {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
         }
-
-        .game-message {
-            margin-top: 1rem;
-            padding: 0.8rem;
+        
+        .stat {
+            flex: 1;
+            background: var(--gray);
+            padding: 1rem;
             border-radius: 8px;
             text-align: center;
-            display: none;
         }
-
-        .success {
-            background: rgba(0, 255, 0, 0.1);
-            color: var(--primary);
-            border: 1px solid var(--primary);
-            display: block;
-        }
-
-        .error {
-            background: rgba(255, 0, 0, 0.1);
-            color: var(--danger);
-            border: 1px solid var(--danger);
-            display: block;
-        }
-
-        @media (max-width: 600px) {
-            .multiplier-display {
-                font-size: 3rem;
-            }
-            
-            .btn-group {
-                grid-template-columns: repeat(2, 1fr);
-            }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
         }
     </style>
 </head>
 <body>
-    <nav class="navbar">
-        <h1>TB CRASH</h1>
-        <div class="account-menu">
-            <div class="account-btn" id="accountBtn">
-                <i class="fas fa-user"></i>
-                <span id="username">Guest</span>
-            </div>
-        </div>
+    <nav class="nav">
+        <div class="logo">TB CRASH</div>
+        <div class="balance">$<span id="balance">0</span></div>
+        <button class="account-btn" id="account-btn">
+            <i class="fas fa-user"></i>
+        </button>
     </nav>
 
     <div class="game-container">
-        <div class="game-display">
-            <div class="multiplier-display" id="multiplierDisplay">1.00x</div>
-            <div class="game-message" id="gameMessage"></div>
-            <button class="btn btn-danger" id="cashoutBtn" disabled>CASH OUT (1.00x)</button>
+        <div class="crash-display">
+            <div class="multiplier" id="multiplier">1.00x</div>
+            <div class="graph-line" id="graph-line"></div>
         </div>
-
-        <div class="bet-panel">
-            <div class="balance-card">
-                <div>BALANCE</div>
-                <div class="balance-amount">$<span id="balance">0.00</span></div>
-            </div>
-
-            <div class="bet-controls">
-                <input type="number" id="betAmount" placeholder="Enter bet amount" step="0.01">
-                <div class="btn-group">
-                    <button class="btn" onclick="adjustBet(0.5)">½</button>
-                    <button class="btn" onclick="adjustBet(2)">2x</button>
-                    <button class="btn" onclick="adjustBet('max')">MAX</button>
-                    <button class="btn" onclick="clearBet()">CLEAR</button>
+        
+        <div class="bet-controls">
+            <div class="input-group">
+                <input type="number" id="bet-amount" placeholder="Bet amount" min="1">
+                <div class="quick-bets">
+                    <button class="quick-bet" data-action="half">½</button>
+                    <button class="quick-bet" data-action="double">2x</button>
+                    <button class="quick-bet" data-action="max">MAX</button>
                 </div>
-                <button class="btn btn-primary" id="placeBetBtn">PLACE BET</button>
-                <button class="btn btn-secondary" id="autoCashoutBtn">
-                    AUTO CASHOUT: <span id="autoCashoutValue">2.00</span>x
-                </button>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="btn-bet" id="place-bet">BET</button>
+                <button class="btn-cashout" id="cash-out" disabled>CASH OUT</button>
             </div>
         </div>
-
-        <div class="history-panel">
+        
+        <div class="history">
             <h3>Recent Games</h3>
-            <div class="history-list" id="historyList">
-                <div class="history-item">
-                    <span>Loading history...</span>
+            <div class="history-list" id="history-list"></div>
+        </div>
+    </div>
+
+    <!-- Account Modal -->
+    <div class="modal" id="account-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Account</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <p>Logged in as: <span id="user-email"></span></p>
+            <button class="btn-bet" id="logout-btn" style="margin-top: 1rem;">Logout</button>
+            <button class="btn-bet" id="referral-btn" style="margin-top: 0.5rem;">Referral Program</button>
+        </div>
+    </div>
+
+    <!-- Referral Modal -->
+    <div class="modal" id="referral-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Referral Program</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="referral-code">
+                <input type="text" id="user-referral-code" readonly>
+                <button class="btn-copy" id="copy-btn">Copy</button>
+            </div>
+            <div class="referral-stats">
+                <div class="stat">
+                    <div class="stat-value" id="referral-count">0</div>
+                    <div class="stat-label">Referrals</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="referral-earnings">0</div>
+                    <div class="stat-label">Earnings</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-functions-compat.js"></script>
-
     <script>
-        // Firebase configuration
+        // Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyDfK_HayFBawYzgIcGXQsQ4ynyCrVHHL8A",
             authDomain: "tbgames-d6995.firebaseapp.com",
@@ -289,342 +361,252 @@
             appId: "1:578117532273:web:3e52426b147f1c7e5af9d0",
             measurementId: "G-VWLDSR92KV"
         };
-
+        
         // Initialize Firebase
         const app = firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
-        const functions = firebase.functions();
-
-        // Game state
-        let user = null;
-        let balance = 0;
-        let currentGame = null;
-        let currentBet = null;
-        let crashPoint = null;
+        
+        // Game State
+        let currentUser = null;
+        let userData = null;
+        let gameActive = false;
+        let currentMultiplier = 1.0;
+        let currentBet = 0;
+        let crashPoint = 1.0;
         let gameInterval = null;
-        let autoCashout = 2.00;
-
-        // DOM elements
+        let graphInterval = null;
+        let startTime = 0;
+        
+        // DOM Elements
         const balanceEl = document.getElementById('balance');
-        const betAmountEl = document.getElementById('betAmount');
-        const placeBetBtn = document.getElementById('placeBetBtn');
-        const cashoutBtn = document.getElementById('cashoutBtn');
-        const autoCashoutBtn = document.getElementById('autoCashoutBtn');
-        const autoCashoutValue = document.getElementById('autoCashoutValue');
-        const multiplierDisplay = document.getElementById('multiplierDisplay');
-        const gameMessage = document.getElementById('gameMessage');
-        const historyList = document.getElementById('historyList');
-        const usernameEl = document.getElementById('username');
-
-   // Initialize auth state - FIXED VERSION
-auth.onAuthStateChanged(async (authUser) => {
-    if (authUser) {
-        user = authUser;  // This is critical - assign to the outer variable
-        usernameEl.textContent = user.email;
-        await initializeUser(user.uid);
-        loadGameHistory();
-    } else {
-        window.location.href = '/login.html';
-    }
-});
-
-// Fixed loadGameHistory
-async function loadGameHistory() {
-    if (!user) return;  // Add null check
-    
-    try {
-        const snapshot = await db.collection('crashBets')
-            .where('userId', '==', user.uid)  // Now safe to access
-            .orderBy('createdAt', 'desc')
-            .limit(10)
-            .get();
+        const multiplierEl = document.getElementById('multiplier');
+        const betAmountEl = document.getElementById('bet-amount');
+        const placeBetBtn = document.getElementById('place-bet');
+        const cashOutBtn = document.getElementById('cash-out');
+        const historyList = document.getElementById('history-list');
+        const accountBtn = document.getElementById('account-btn');
+        const accountModal = document.getElementById('account-modal');
+        const referralModal = document.getElementById('referral-modal');
+        const userEmailEl = document.getElementById('user-email');
+        const userReferralCodeEl = document.getElementById('user-referral-code');
+        const referralCountEl = document.getElementById('referral-count');
+        const referralEarningsEl = document.getElementById('referral-earnings');
+        const logoutBtn = document.getElementById('logout-btn');
+        const referralBtn = document.getElementById('referral-btn');
+        const copyBtn = document.getElementById('copy-btn');
+        const graphLine = document.getElementById('graph-line');
         
-        historyList.innerHTML = '';
-        
-        if (snapshot.empty) {
-            historyList.innerHTML = '<div class="history-item">No games played yet</div>';
-            return;
-        }
-        
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            addToHistory(data.status === 'cashedout', data.cashoutMultiplier || 0, true);
+        // Auth State Listener
+        auth.onAuthStateChanged(async user => {
+            if (!user) {
+                window.location.href = 'https://riodev0.github.io/login';
+                return;
+            }
+            
+            currentUser = user;
+            userEmailEl.textContent = user.email;
+            await loadUserData();
+            loadHistory();
         });
         
-    } catch (error) {
-        console.error("Failed to load history:", error);
-        historyList.innerHTML = '<div class="history-item error">Failed to load history</div>';
-    }
-}
-
-        // Initialize user data
-        async function initializeUser(uid) {
-            const userRef = db.collection('users').doc(uid);
-            const doc = await userRef.get();
+        // Load User Data
+        async function loadUserData() {
+            const doc = await db.collection('users').doc(currentUser.uid).get();
+            userData = doc.data();
+            balanceEl.textContent = userData.balance;
             
-            if (!doc.exists) {
-                await userRef.set({
-                    balance: 1000.00,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                balance = 1000.00;
-            } else {
-                balance = doc.data().balance;
-            }
-            balanceEl.textContent = balance.toFixed(2);
-        }
-
-        // Place bet and start game
-        async function placeBet() {
-            const amount = parseFloat(betAmountEl.value);
-            
-            if (isNaN(amount) || amount <= 0) {
-                showMessage('Please enter a valid bet amount', 'error');
-                return;
-            }
-            
-            if (amount > balance) {
-                showMessage('Insufficient balance', 'error');
-                return;
-            }
-
-            try {
-                // Create bet document
-                const betRef = await db.collection('crashBets').add({
-                    userId: user.uid,
-                    amount: amount,
-                    status: 'pending',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                
-                currentBet = { id: betRef.id, amount };
-                
-                // Deduct from balance
-                await db.collection('users').doc(user.uid).update({
-                    balance: firebase.firestore.FieldValue.increment(-amount)
-                });
-                balance -= amount;
-                balanceEl.textContent = balance.toFixed(2);
-                
-                // Start new game
-                startNewGame();
-                
-            } catch (error) {
-                console.error("Bet placement failed:", error);
-                showMessage('Bet failed. Please try again.', 'error');
+            // Set referral data
+            if (userData.referralCode) {
+                userReferralCodeEl.value = userData.referralCode;
+                referralCountEl.textContent = userData.referrals?.length || 0;
+                referralEarningsEl.textContent = userData.referralEarnings || 0;
             }
         }
-
-        // Start new crash game
-        async function startNewGame() {
-            try {
-                placeBetBtn.disabled = true;
-                showMessage('Starting new game...', 'success');
-                
-                // Create game via Cloud Function
-                const createGame = functions.httpsCallable('createCrashGame');
-                const { data: { gameId, hash } } = await createGame({
-                    clientSeed: Date.now().toString()
-                });
-                
-                currentGame = gameId;
-                
-                // Start game after 5 seconds
-                setTimeout(async () => {
-                    const startGame = functions.httpsCallable('startCrashGame');
-                    const { data: { crashPoint: point } } = await startGame({ gameId });
-                    
-                    crashPoint = point;
-                    runGameLoop();
-                    
-                }, 5000);
-                
-            } catch (error) {
-                console.error("Game start failed:", error);
-                showMessage('Game start failed', 'error');
-                resetGame();
-            }
-        }
-
-        // Run the game loop
-        function runGameLoop() {
-            let startTime = Date.now();
-            let currentMultiplier = 1.0;
-            let crashed = false;
-            
-            gameMessage.textContent = 'Game in progress!';
-            gameMessage.className = 'game-message success';
-            cashoutBtn.disabled = false;
-            
-            gameInterval = setInterval(() => {
-                const elapsed = (Date.now() - startTime) / 1000;
-                currentMultiplier = Math.min(crashPoint, 1 + (elapsed * 0.05));
-                
-                // Update display
-                multiplierDisplay.textContent = currentMultiplier.toFixed(2) + 'x';
-                cashoutBtn.textContent = `CASH OUT (${currentMultiplier.toFixed(2)}x)`;
-                
-                // Check for auto cashout
-                if (autoCashout && currentMultiplier >= autoCashout) {
-                    cashout();
-                    return;
-                }
-                
-                // Check for crash
-                if (currentMultiplier >= crashPoint && !crashed) {
-                    crashed = true;
-                    endGame(false);
-                }
-                
-            }, 50);
-        }
-
-        // Cash out manually
-        async function cashout() {
-            if (!gameInterval) return;
-            
-            clearInterval(gameInterval);
-            const multiplier = parseFloat(multiplierDisplay.textContent);
-            await endGame(true, multiplier);
-        }
-
-        // End the game
-        async function endGame(didCashout, multiplier) {
-            try {
-                const winAmount = didCashout ? currentBet.amount * multiplier : 0;
-                
-                // Update bet document
-                await db.collection('crashBets').doc(currentBet.id).update({
-                    status: didCashout ? 'cashedout' : 'crashed',
-                    cashoutMultiplier: didCashout ? multiplier : null,
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                
-                // Update user balance if cashed out
-                if (didCashout) {
-                    await db.collection('users').doc(user.uid).update({
-                        balance: firebase.firestore.FieldValue.increment(winAmount)
-                    });
-                    balance += winAmount;
-                    balanceEl.textContent = balance.toFixed(2);
-                    
-                    showMessage(`Cashed out at ${multiplier.toFixed(2)}x! Won $${winAmount.toFixed(2)}`, 'success');
-                } else {
-                    showMessage(`Crashed at ${crashPoint.toFixed(2)}x`, 'error');
-                }
-                
-                // Add to history
-                addToHistory(didCashout, multiplier);
-                
-            } catch (error) {
-                console.error("Game end failed:", error);
-                showMessage('Game end failed', 'error');
-            } finally {
-                resetGame();
-            }
-        }
-
-        // Reset game state
-        function resetGame() {
-            clearInterval(gameInterval);
-            currentGame = null;
-            currentBet = null;
-            crashPoint = null;
-            gameInterval = null;
-            
-            multiplierDisplay.textContent = '1.00x';
-            cashoutBtn.textContent = 'CASH OUT (1.00x)';
-            cashoutBtn.disabled = true;
-            placeBetBtn.disabled = false;
-            
-            setTimeout(() => {
-                gameMessage.textContent = '';
-                gameMessage.className = 'game-message';
-            }, 3000);
-        }
-
-        // Load game history
-        async function loadGameHistory() {
-            try {
-                const snapshot = await db.collection('crashBets')
-                    .where('userId', '==', user.uid)
-                    .orderBy('createdAt', 'desc')
-                    .limit(10)
-                    .get();
-                
-                historyList.innerHTML = '';
-                
-                if (snapshot.empty) {
-                    historyList.innerHTML = '<div class="history-item">No games played yet</div>';
-                    return;
-                }
-                
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    addToHistory(data.status === 'cashedout', data.cashoutMultiplier || 0, true);
-                });
-                
-            } catch (error) {
-                console.error("Failed to load history:", error);
-                historyList.innerHTML = '<div class="history-item error">Failed to load history</div>';
-            }
-        }
-
-        // Add to history display
-        function addToHistory(won, multiplier, isHistorical = false) {
-            if (!isHistorical) {
-                const historyItem = document.createElement('div');
-                historyItem.className = `history-item ${won ? 'win' : 'lose'}`;
-                historyItem.innerHTML = `
-                    <span>${won ? 'Cashed out' : 'Crashed'} at ${multiplier.toFixed(2)}x</span>
-                    <span>${new Date().toLocaleTimeString()}</span>
-                `;
-                historyList.insertBefore(historyItem, historyList.firstChild);
-                
-                // Keep only last 10 items
-                if (historyList.children.length > 10) {
-                    historyList.removeChild(historyList.lastChild);
-                }
-            } else {
-                const historyItem = document.createElement('div');
-                historyItem.className = `history-item ${won ? 'win' : 'lose'}`;
-                historyItem.innerHTML = `
-                    <span>${won ? 'Cashed out' : 'Crashed'} at ${multiplier.toFixed(2)}x</span>
-                    <span>${data.createdAt.toDate().toLocaleTimeString()}</span>
-                `;
-                historyList.appendChild(historyItem);
-            }
-        }
-
-        // Utility functions
-        function showMessage(text, type) {
-            gameMessage.textContent = text;
-            gameMessage.className = `game-message ${type}`;
-        }
-
-        function adjustBet(multiplier) {
-            if (multiplier === 'max') {
-                betAmountEl.value = balance.toFixed(2);
-            } else {
-                const current = parseFloat(betAmountEl.value) || 0;
-                betAmountEl.value = Math.min(balance, current * multiplier).toFixed(2);
-            }
-        }
-
-        function clearBet() {
-            betAmountEl.value = '';
-        }
-
-        // Event listeners
-        placeBetBtn.addEventListener('click', placeBet);
-        cashoutBtn.addEventListener('click', cashout);
         
-        autoCashoutBtn.addEventListener('click', () => {
-            const newValue = parseFloat(prompt('Set auto cashout multiplier (e.g. 2.00)', autoCashout));
-            if (!isNaN(newValue) && newValue >= 1.01) {
-                autoCashout = newValue;
-                autoCashoutValue.textContent = newValue.toFixed(2);
+        // Load Game History
+        async function loadHistory() {
+            const snapshot = await db.collection('games')
+                .orderBy('timestamp', 'desc')
+                .limit(10)
+                .get();
+            
+            historyList.innerHTML = '';
+            snapshot.forEach(doc => {
+                const game = doc.data();
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                item.innerHTML = `
+                    <span>${game.multiplier}x</span>
+                    <span>$${game.bet}</span>
+                `;
+                historyList.appendChild(item);
+            });
+        }
+        
+        // Game Logic
+        function calculateCrashPoint() {
+            // Simplified crash algorithm
+            const e = 100 / (1 + Math.random() * 10);
+            return Math.max(1, e.toFixed(2));
+        }
+        
+        function startGame() {
+            gameActive = true;
+            currentMultiplier = 1.0;
+            crashPoint = calculateCrashPoint();
+            startTime = Date.now();
+            
+            placeBetBtn.disabled = true;
+            cashOutBtn.disabled = false;
+            
+            // Start multiplier animation
+            gameInterval = setInterval(updateMultiplier, 50);
+            
+            // Start graph animation
+            graphLine.style.height = '0%';
+            graphInterval = setInterval(updateGraph, 50);
+        }
+        
+        function updateMultiplier() {
+            const elapsed = (Date.now() - startTime) / 1000;
+            currentMultiplier = 1 + (elapsed * 0.05);
+            
+            if (currentMultiplier >= crashPoint) {
+                endGame(false);
+                return;
+            }
+            
+            multiplierEl.textContent = currentMultiplier.toFixed(2) + 'x';
+        }
+        
+        function updateGraph() {
+            const progress = (currentMultiplier - 1) / (crashPoint - 1) * 100;
+            graphLine.style.height = `${progress}%`;
+            
+            // Change color based on multiplier
+            if (currentMultiplier > crashPoint * 0.8) {
+                graphLine.style.background = 'var(--secondary)';
+            } else {
+                graphLine.style.background = 'var(--primary)';
+            }
+        }
+        
+        function endGame(cashedOut) {
+            clearInterval(gameInterval);
+            clearInterval(graphInterval);
+            gameActive = false;
+            
+            const multiplier = cashedOut ? currentMultiplier : 1;
+            const winnings = currentBet * multiplier;
+            
+            // Update balance
+            db.collection('users').doc(currentUser.uid).update({
+                balance: firebase.firestore.FieldValue.increment(winnings - currentBet)
+            });
+            
+            // Save game result
+            db.collection('games').add({
+                bet: currentBet,
+                multiplier: multiplier.toFixed(2),
+                cashedOut: cashedOut,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            // Reset UI
+            placeBetBtn.disabled = false;
+            cashOutBtn.disabled = true;
+            multiplierEl.textContent = '1.00x';
+            graphLine.style.height = '0%';
+            
+            // Reload data
+            loadUserData();
+            loadHistory();
+        }
+        
+        // Event Listeners
+        placeBetBtn.addEventListener('click', () => {
+            const betAmount = parseFloat(betAmountEl.value);
+            
+            if (isNaN(betAmount) || betAmount < 1) {
+                alert('Please enter a valid bet amount');
+                return;
+            }
+            
+            if (betAmount > userData.balance) {
+                alert('Insufficient balance');
+                return;
+            }
+            
+            currentBet = betAmount;
+            startGame();
+        });
+        
+        cashOutBtn.addEventListener('click', () => {
+            if (!gameActive) return;
+            endGame(true);
+        });
+        
+        // Quick Bet Buttons
+        document.querySelectorAll('.quick-bet').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const action = btn.getAttribute('data-action');
+                let newAmount = parseFloat(betAmountEl.value) || 0;
+                
+                switch(action) {
+                    case 'half':
+                        newAmount = Math.floor(newAmount / 2);
+                        break;
+                    case 'double':
+                        newAmount = newAmount * 2;
+                        break;
+                    case 'max':
+                        newAmount = userData.balance;
+                        break;
+                }
+                
+                betAmountEl.value = newAmount;
+            });
+        });
+        
+        // Account Modal
+        accountBtn.addEventListener('click', () => {
+            accountModal.style.display = 'flex';
+        });
+        
+        // Referral Modal
+        referralBtn.addEventListener('click', () => {
+            accountModal.style.display = 'none';
+            referralModal.style.display = 'flex';
+        });
+        
+        // Copy Referral Code
+        copyBtn.addEventListener('click', () => {
+            userReferralCodeEl.select();
+            document.execCommand('copy');
+            alert('Referral code copied!');
+        });
+        
+        // Logout
+        logoutBtn.addEventListener('click', () => {
+            auth.signOut();
+        });
+        
+        // Close Modals
+        document.querySelectorAll('.modal-close').forEach(btn => {
+            btn.addEventListener('click', () => {
+                accountModal.style.display = 'none';
+                referralModal.style.display = 'none';
+            });
+        });
+        
+        // Close modal when clicking outside
+        window.addEventListener('click', (e) => {
+            if (e.target === accountModal) {
+                accountModal.style.display = 'none';
+            }
+            if (e.target === referralModal) {
+                referralModal.style.display = 'none';
             }
         });
     </script>

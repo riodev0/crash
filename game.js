@@ -16,7 +16,7 @@ const db = firebase.firestore();
 // Enable Firestore persistence for better offline support
 db.enablePersistence()
   .catch((err) => {
-    console.log("Persistence failed: ", err);
+    console.log("Firestore persistence failed: ", err);
   });
 
 // Game State
@@ -37,23 +37,24 @@ const multiplierDisplay = document.getElementById('multiplierDisplay');
 const gameMessage = document.getElementById('gameMessage');
 const historyList = document.getElementById('historyList');
 const usernameEl = document.getElementById('username');
+const autoCashoutInput = document.getElementById('autoCashout');
 
-// Initialize Auth with GitHub Pages compatible settings
+// Initialize Auth
 auth.onAuthStateChanged(async (authUser) => {
   if (authUser) {
     user = authUser;
-    usernameEl.textContent = user.email;
+    usernameEl.textContent = user.email || 'Anonymous';
     await initializeUser(user.uid);
-    loadGameHistory();
+    await loadGameHistory();
   } else {
-    // Handle GitHub Pages routing - adjust if your login page has a different path
+    // Redirect to login page if not authenticated
     if (!window.location.pathname.includes('login.html')) {
-      window.location.href = '/TB-Crash/login.html';
+      window.location.href = '/login.html';
     }
   }
 });
 
-// Initialize User with error handling
+// Initialize User with enhanced error handling
 async function initializeUser(uid) {
   try {
     const userRef = db.collection('users').doc(uid);
@@ -75,12 +76,12 @@ async function initializeUser(uid) {
     }
     updateBalanceDisplay();
   } catch (error) {
-    console.error("User init failed:", error);
+    console.error("User initialization failed:", error);
     showMessage('Failed to load user data', 'error');
   }
 }
 
-// Enhanced Place Bet function with GitHub Pages compatibility
+// Enhanced Place Bet function with validation
 async function placeBet() {
   if (!user) {
     showMessage('Please sign in to place bets', 'error');
@@ -114,7 +115,7 @@ async function placeBet() {
     
     currentBet = { id: betRef.id, amount };
     
-    // Update balance using transaction
+    // Update balance using transaction for atomic operation
     await db.runTransaction(async (transaction) => {
       const userRef = db.collection('users').doc(user.uid);
       const doc = await transaction.get(userRef);
@@ -132,7 +133,7 @@ async function placeBet() {
   }
 }
 
-// Start New Game with CORS handling
+// Start New Game with enhanced CORS handling
 async function startNewGame() {
   try {
     const token = await auth.currentUser.getIdToken();
@@ -288,8 +289,6 @@ async function endGame(didCashout, multiplier) {
       });
       
       showMessage(`Cashed out at ${multiplier.toFixed(2)}x! Won $${winAmount.toFixed(2)}`, 'success');
-      
-      // Play cashout sound
       playSound('cashout');
     } else {
       showMessage(`Crashed at ${crashPoint.toFixed(2)}x`, 'error');
@@ -307,7 +306,7 @@ async function endGame(didCashout, multiplier) {
   }
 }
 
-// Load Game History with pagination
+// Enhanced Load Game History with pagination
 async function loadGameHistory() {
   if (!user) return;
   
@@ -326,9 +325,9 @@ async function loadGameHistory() {
     }
     
     snapshot.forEach(doc => {
-      const data = doc.data();
-      const date = data.createdAt?.toDate?.() || new Date();
-      addToHistory(data.status === 'cashedout', data.cashoutMultiplier || 0, date);
+      const betData = doc.data();
+      const date = betData.createdAt?.toDate?.() || new Date();
+      addToHistory(betData.status === 'cashedout', betData.cashoutMultiplier || 0, date);
     });
     
   } catch (error) {
@@ -341,7 +340,7 @@ async function loadGameHistory() {
   }
 }
 
-// Simple sound effects for GitHub Pages
+// Simple sound effects
 function playSound(type) {
   if (type === 'cashout') {
     const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3');
@@ -416,6 +415,16 @@ document.querySelectorAll('.bet-button').forEach(button => {
     else if (action === 'max') adjustBet('max');
     else if (action === 'clear') clearBet();
   });
+});
+
+// Auto cashout input
+autoCashoutInput.addEventListener('change', (e) => {
+  const value = parseFloat(e.target.value);
+  if (!isNaN(value) && value >= 1.0) {
+    autoCashout = value;
+  } else {
+    autoCashout = null;
+  }
 });
 
 // Adjust bet amount

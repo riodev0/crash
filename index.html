@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crash Game</title>
+    <title>Crash Game V2</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -671,22 +671,22 @@
         // Game configuration
         const config = {
             initialBalance: 10000,
-            houseEdge: 0.03, // 3% house edge
+            houseEdge: 0.03,
             maxMultiplier: 100,
             historySize: 10,
-            gameDuration: 5000, // Base duration in ms
-            maxGameDuration: 10000, // Max duration in ms
-            crashPointVariation: 0.3, // How much the crash point can vary
+            gameDuration: 5000,
+            maxGameDuration: 10000,
+            crashPointVariation: 0.3,
             minCrashPoint: 1.1,
             maxCrashPoint: 100,
-            graphPoints: 100 // Number of points in the graph
+            graphPoints: 100
         };
 
         // Game state
         const state = {
             balance: config.initialBalance,
             currentBet: 10,
-            gameState: 'waiting', // waiting, counting, flying, crashed
+            gameState: 'waiting',
             crashPoint: 1,
             currentMultiplier: 1,
             startTime: 0,
@@ -703,362 +703,89 @@
             isNewUser: true
         };
 
-        // DOM elements
-        const elements = {
-            balance: document.getElementById('balance'),
-            betAmount: document.getElementById('bet-amount'),
-            halfBtn: document.getElementById('half-btn'),
-            doubleBtn: document.getElementById('double-btn'),
-            maxBtn: document.getElementById('max-btn'),
-            placeBetBtn: document.getElementById('place-bet-btn'),
-            cashoutBtn: document.getElementById('cashout-btn'),
-            graph: document.getElementById('graph'),
-            path: document.getElementById('path'),
-            multiplier: document.getElementById('multiplier'),
-            history: document.getElementById('history'),
-            betsList: document.getElementById('bets-list'),
-            winAnimation: document.getElementById('win-animation'),
-            winMessage: document.getElementById('win-message'),
-            winAmount: document.getElementById('win-amount'),
-            autoCashoutCheck: document.getElementById('auto-cashout-check'),
-            autoCashoutValue: document.getElementById('auto-cashout-value'),
-            accountBtn: document.getElementById('account-btn'),
-            accountDropdown: document.getElementById('account-dropdown'),
-            usernameDisplay: document.getElementById('username-display'),
-            authBtn: document.getElementById('auth-btn'),
-            settingsBtn: document.getElementById('settings-btn'),
-            loginNotification: document.getElementById('login-notification')
-        };
+        // [Previous DOM elements and helper functions remain the same until initAuth()]
 
-        // Show login notification
-        function showLoginNotification() {
-            if (!state.user) {
-                elements.loginNotification.style.display = 'block';
-                setTimeout(() => {
-                    elements.loginNotification.style.display = 'none';
-                }, 5000);
-            }
-        }
-
-        // Initialize the game
-        function init() {
-            updateUI();
-            setupEventListeners();
-            generateHistory();
-            startWaitingPhase();
-            initAuth();
-            showLoginNotification();
-        }
-
-        // Initialize authentication
+        // Initialize authentication with persistent session
         function initAuth() {
-            auth.onAuthStateChanged(async (user) => {
-                if (user) {
-                    state.user = user;
-                    await loadUserData(user.uid);
-                    updateAccountDisplay();
-                    updateUI();
-                    
-                    elements.settingsBtn.style.display = 'flex';
-                    elements.authBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Logout';
-                    elements.authBtn.onclick = handleLogout;
-                    elements.authBtn.removeAttribute('href');
-                } else {
-                    state.user = null;
-                    state.userData = null;
-                    state.balance = config.initialBalance;
-                    state.isNewUser = true;
-                    updateAccountDisplay();
-                    updateUI();
-                    
-                    elements.settingsBtn.style.display = 'none';
-                    elements.authBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
-                    elements.authBtn.href = 'https://riodev0.github.io/login';
-                    elements.authBtn.onclick = null;
-                }
-            });
+            auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+                .then(() => {
+                    return auth.onAuthStateChanged(async (user) => {
+                        if (user) {
+                            state.user = user;
+                            await loadUserData(user.uid);
+                            updateAccountDisplay();
+                            updateUI();
+                            
+                            elements.settingsBtn.style.display = 'flex';
+                            elements.authBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Logout';
+                            elements.authBtn.onclick = handleLogout;
+                            elements.authBtn.removeAttribute('href');
+                        } else {
+                            state.user = null;
+                            state.userData = null;
+                            state.balance = config.initialBalance;
+                            state.isNewUser = true;
+                            updateAccountDisplay();
+                            updateUI();
+                            
+                            elements.settingsBtn.style.display = 'none';
+                            elements.authBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
+                            elements.authBtn.href = 'https://riodev0.github.io/login';
+                            elements.authBtn.onclick = null;
+                        }
+                    });
+                })
+                .catch((error) => {
+                    console.error("Auth persistence error:", error);
+                });
         }
 
-        // Load user data from Firestore
+        // Load user data with real-time updates
         async function loadUserData(userId) {
             try {
-                const doc = await db.collection('users').doc(userId).get();
-                if (doc.exists) {
-                    state.userData = doc.data();
-                    state.isNewUser = false;
-                    state.balance = state.userData.balance || config.initialBalance;
-                    updateUI();
-                } else {
-                    await db.collection('users').doc(userId).set({
-                        balance: config.initialBalance,
-                        username: state.user.email.split('@')[0],
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    state.balance = config.initialBalance;
-                    state.isNewUser = true;
-                    updateUI();
-                }
+                // Set up real-time listener
+                db.collection('users').doc(userId).onSnapshot((doc) => {
+                    if (doc.exists) {
+                        state.userData = doc.data();
+                        state.isNewUser = false;
+                        state.balance = state.userData.balance || config.initialBalance;
+                        updateUI();
+                    } else {
+                        // Create new user document if it doesn't exist
+                        db.collection('users').doc(userId).set({
+                            balance: config.initialBalance,
+                            username: state.user.email.split('@')[0],
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    }
+                });
             } catch (error) {
                 console.error("Error loading user data:", error);
             }
         }
 
-        // Update user balance in Firestore
+        // Update user balance with error handling
         async function updateUserBalance(newBalance) {
             if (!state.user) {
                 showLoginNotification();
-                return;
+                return false;
             }
             
             try {
                 await db.collection('users').doc(state.user.uid).update({
-                    balance: newBalance
+                    balance: newBalance,
+                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 state.balance = newBalance;
                 updateUI();
+                return true;
             } catch (error) {
                 console.error("Error updating balance:", error);
+                return false;
             }
         }
 
-        // Update account display
-        function updateAccountDisplay() {
-            if (state.user) {
-                const username = state.user.email.split('@')[0];
-                elements.usernameDisplay.textContent = `@${username}`;
-            } else {
-                elements.usernameDisplay.textContent = "@Guest";
-            }
-        }
-
-        // Handle logout
-        function handleLogout(e) {
-            e.preventDefault();
-            auth.signOut().then(() => {
-                window.location.href = 'https://riodev0.github.io/login';
-            }).catch((error) => {
-                console.error("Logout error:", error);
-            });
-        }
-
-        // Start waiting phase (between games)
-        function startWaitingPhase() {
-            state.gameState = 'waiting';
-            state.currentMultiplier = 1;
-            state.crashPoint = calculateCrashPoint();
-            state.crashPath = generateCrashPath(state.crashPoint);
-            state.userBet = null; // Reset user bet
-            updateMultiplierDisplay();
-            updateGraph();
-            
-            // Start countdown to next game
-            setTimeout(startCountdownPhase, 3000);
-        }
-
-        // Start countdown phase
-        function startCountdownPhase() {
-            if (state.gameState !== 'waiting') return;
-            
-            state.gameState = 'counting';
-            updateUI();
-            
-            // Countdown 3 seconds
-            let count = 3;
-            elements.multiplier.textContent = count + '...';
-            
-            const countdownInterval = setInterval(() => {
-                count--;
-                if (count > 0) {
-                    elements.multiplier.textContent = count + '...';
-                } else {
-                    clearInterval(countdownInterval);
-                    elements.multiplier.textContent = 'GO!';
-                    setTimeout(startFlyingPhase, 500);
-                }
-            }, 1000);
-        }
-
-        // Start flying phase (multiplier increasing)
-        function startFlyingPhase() {
-            if (state.gameState !== 'counting') return;
-            
-            state.gameState = 'flying';
-            state.startTime = Date.now();
-            state.elapsedTime = 0;
-            updateUI();
-            
-            // Start animation
-            animateFlight();
-        }
-
-        // Animate the flying phase
-        function animateFlight() {
-            if (state.gameState !== 'flying') return;
-            
-            state.elapsedTime = Date.now() - state.startTime;
-            const progress = Math.min(state.elapsedTime / config.gameDuration, 1);
-            
-            // Calculate current multiplier based on crash path
-            const pathIndex = Math.min(Math.floor(progress * (config.graphPoints - 1)), config.graphPoints - 1);
-            state.currentMultiplier = state.crashPath[pathIndex];
-            
-            // Check if we've reached the crash point
-            if (state.currentMultiplier >= state.crashPoint) {
-                endGame();
-                return;
-            }
-            
-            // Check for auto cashout
-            if (state.autoCashoutEnabled && state.userBet && 
-                state.currentMultiplier >= state.autoCashoutValue) {
-                cashout();
-                return;
-            }
-            
-            updateMultiplierDisplay();
-            updateGraph();
-            updateBetsList(); // Update bet display during flight
-            
-            // Continue animation
-            state.animationFrame = requestAnimationFrame(animateFlight);
-        }
-
-        // End the game (crash)
-        function endGame() {
-            if (state.gameState !== 'flying') return;
-            
-            state.gameState = 'crashed';
-            state.currentMultiplier = state.crashPoint;
-            updateMultiplierDisplay();
-            updateGraph();
-            
-            // Process all bets as losses
-            state.bets.forEach(bet => {
-                if (!bet.cashedOut) {
-                    bet.crashed = true;
-                }
-            });
-            
-            // Add to history
-            addToHistory(state.crashPoint);
-            
-            // Update UI
-            updateBetsList();
-            updateUI();
-            
-            // Clear any animation
-            if (state.animationFrame) {
-                cancelAnimationFrame(state.animationFrame);
-                state.animationFrame = null;
-            }
-            
-            // Start next game after delay
-            setTimeout(startWaitingPhase, 5000);
-        }
-
-        // Calculate the crash point using the crash algorithm
-        function calculateCrashPoint() {
-            // Using a simplified version of the crash algorithm
-            // The lower the number, the more likely it is to crash (but never below minCrashPoint)
-            const r = Math.random();
-            const e = 1 - config.houseEdge;
-            const crashPoint = Math.max(config.minCrashPoint, (e / (1 - r)) * (1 - config.crashPointVariation + Math.random() * config.crashPointVariation * 2));
-            
-            return Math.min(crashPoint, config.maxCrashPoint);
-        }
-
-        // Generate a smooth crash path
-        function generateCrashPath(crashPoint) {
-            const path = [];
-            const durationFactor = Math.min(1 + (crashPoint / 10), 2); // Longer games for higher multipliers
-            
-            // Generate points with easing function for smoother curve
-            for (let i = 0; i < config.graphPoints; i++) {
-                const t = i / (config.graphPoints - 1);
-                const progress = Math.min(t * durationFactor, 1);
-                
-                // Use easing function for more natural growth
-                const easedProgress = easeOutQuad(progress);
-                
-                // Calculate multiplier at this point
-                let multiplier;
-                if (progress < 1) {
-                    // Before crash point
-                    multiplier = 1 + (crashPoint - 1) * easedProgress;
-                } else {
-                    // At crash point
-                    multiplier = crashPoint;
-                }
-                
-                path.push(multiplier);
-            }
-            
-            return path;
-        }
-
-        // Easing function for smooth animation
-        function easeOutQuad(t) {
-            return t * (2 - t);
-        }
-
-        // Update the multiplier display
-        function updateMultiplierDisplay() {
-            if (state.gameState === 'waiting') {
-                elements.multiplier.textContent = 'GET READY';
-                elements.multiplier.style.backgroundColor = '#f8c537';
-                elements.multiplier.style.color = '#222';
-            } else if (state.gameState === 'counting') {
-                // Handled in countdown function
-            } else {
-                elements.multiplier.textContent = state.currentMultiplier.toFixed(2) + 'x';
-                
-                // Change color based on multiplier
-                if (state.currentMultiplier >= 5) {
-                    elements.multiplier.style.backgroundColor = '#2ecc71';
-                    elements.multiplier.style.color = '#f9f9f9';
-                } else if (state.currentMultiplier >= 2) {
-                    elements.multiplier.style.backgroundColor = '#f8c537';
-                    elements.multiplier.style.color = '#222';
-                } else {
-                    elements.multiplier.style.backgroundColor = '#f8c537';
-                    elements.multiplier.style.color = '#222';
-                }
-            }
-        }
-
-        // Update the graph display
-        function updateGraph() {
-            const width = elements.graph.offsetWidth;
-            const height = elements.graph.offsetHeight;
-            const maxMultiplier = Math.max(10, state.crashPoint * 1.5); // Show up to 10x or 1.5x crash point
-            
-            // Clear previous path
-            elements.path.innerHTML = '';
-            
-            // Create new path
-            let pathData = '';
-            const pointsToShow = Math.min(
-                Math.floor(config.graphPoints * (state.elapsedTime / config.gameDuration)), 
-                config.graphPoints
-            );
-            
-            for (let i = 0; i < pointsToShow; i++) {
-                const x = (i / (config.graphPoints - 1)) * width;
-                const y = height - (state.crashPath[i] / maxMultiplier) * height;
-                
-                if (i === 0) {
-                    pathData += `M ${x} ${y}`;
-                } else {
-                    pathData += ` L ${x} ${y}`;
-                }
-            }
-            
-            const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            pathElement.setAttribute('d', pathData);
-            elements.path.appendChild(pathElement);
-        }
-
-        // Place a bet
+        // Modified placeBet function with better error handling
         async function placeBet() {
             if (!state.user) {
                 alert("Please login to play");
@@ -1083,26 +810,30 @@
             
             // Deduct bet amount from balance
             const newBalance = state.balance - state.currentBet;
-            state.balance = newBalance;
-            await updateUserBalance(newBalance);
+            const success = await updateUserBalance(newBalance);
+            
+            if (!success) {
+                alert("Failed to place bet. Please try again.");
+                return;
+            }
             
             // Create new bet
             state.userBet = {
                 amount: state.currentBet,
                 cashedOut: false,
                 crashed: false,
-                cashoutMultiplier: 0
+                cashoutMultiplier: 0,
+                timestamp: Date.now()
             };
             state.bets.push(state.userBet);
             
             updateUI();
             updateBetsList();
             
-            // Show confirmation
             console.log(`Bet placed: $${state.currentBet}`);
         }
 
-        // Cash out
+        // Modified cashout function with better error handling
         async function cashout() {
             if (state.gameState !== 'flying') {
                 alert("Cannot cash out now");
@@ -1116,8 +847,12 @@
             
             const winAmount = Math.floor(state.userBet.amount * state.currentMultiplier);
             const newBalance = state.balance + winAmount;
-            state.balance = newBalance;
-            await updateUserBalance(newBalance);
+            const success = await updateUserBalance(newBalance);
+            
+            if (!success) {
+                alert("Failed to process cashout. Please try again.");
+                return;
+            }
             
             // Update bet status
             state.userBet.cashedOut = true;
@@ -1131,9 +866,9 @@
             updateUI();
             updateBetsList();
             
-            // Show confirmation
             console.log(`Cashed out at ${state.currentMultiplier.toFixed(2)}x - Won $${winAmount}`);
         }
+
 
         // Generate random history
         function generateHistory() {

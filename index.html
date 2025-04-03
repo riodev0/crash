@@ -317,17 +317,46 @@
         const historyList = document.getElementById('historyList');
         const usernameEl = document.getElementById('username');
 
-        // Initialize auth state
-        auth.onAuthStateChanged(async user => {
-            if (user) {
-                user = user;
-                usernameEl.textContent = user.email;
-                await initializeUser(user.uid);
-                loadGameHistory();
-            } else {
-                window.location.href = '/login.html';
-            }
+   // Initialize auth state - FIXED VERSION
+auth.onAuthStateChanged(async (authUser) => {
+    if (authUser) {
+        user = authUser;  // This is critical - assign to the outer variable
+        usernameEl.textContent = user.email;
+        await initializeUser(user.uid);
+        loadGameHistory();
+    } else {
+        window.location.href = '/login.html';
+    }
+});
+
+// Fixed loadGameHistory
+async function loadGameHistory() {
+    if (!user) return;  // Add null check
+    
+    try {
+        const snapshot = await db.collection('crashBets')
+            .where('userId', '==', user.uid)  // Now safe to access
+            .orderBy('createdAt', 'desc')
+            .limit(10)
+            .get();
+        
+        historyList.innerHTML = '';
+        
+        if (snapshot.empty) {
+            historyList.innerHTML = '<div class="history-item">No games played yet</div>';
+            return;
+        }
+        
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            addToHistory(data.status === 'cashedout', data.cashoutMultiplier || 0, true);
         });
+        
+    } catch (error) {
+        console.error("Failed to load history:", error);
+        historyList.innerHTML = '<div class="history-item error">Failed to load history</div>';
+    }
+}
 
         // Initialize user data
         async function initializeUser(uid) {

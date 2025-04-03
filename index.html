@@ -3,547 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TB Advanced Crash</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>TB Crash - Maintenance</title>
     <style>
-        :root {
-            --primary: #00ffcc;
-            --secondary: #ff00aa;
-            --accent: #7700ff;
-            --dark: #121212;
-            --darker: #0a0a0a;
-            --light: #ffffff;
-            --gray: #333333;
-            --success: #00cc66;
-            --danger: #ff4444;
+        /* Maintenance Overlay Styles */
+        .maintenance-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            cursor: not-allowed;
         }
 
-        * {
+        .maintenance-content {
+            text-align: center;
+            padding: 2rem;
+            background: #1a1a1a;
+            border-radius: 15px;
+            border: 2px solid #ff4444;
+            max-width: 500px;
+            animation: maintenancePulse 2s infinite;
+        }
+
+        @keyframes maintenancePulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        .maintenance-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #ff4444;
+            border-radius: 50%;
+            border-top-color: transparent;
+            margin: 0 auto 1rem;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .maintenance-timer {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #2a2a2a;
+            border-radius: 8px;
+            font-family: monospace;
+        }
+
+        /* Block all page interactions */
+        body {
+            overflow: hidden;
+            pointer-events: none;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        body {
-            background-color: var(--dark);
-            color: var(--light);
-            min-height: 100vh;
-        }
-
-        /* Advanced Navbar */
-        .navbar {
-            background: var(--darker);
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            position: relative;
-            z-index: 1000;
-        }
-
-        .account-menu {
-            position: relative;
-        }
-
-        .account-btn {
-            background: var(--gray);
-            padding: 0.8rem 1.2rem;
-            border-radius: 8px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.8rem;
-            transition: all 0.3s;
-        }
-
-        .account-btn:hover {
-            background: var(--gray) !important;
-            transform: translateY(-2px);
-        }
-
-        .dropdown {
-            position: absolute;
-            right: 0;
-            top: 120%;
-            background: var(--darker);
-            border-radius: 8px;
-            padding: 0.5rem;
-            min-width: 200px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(-10px);
-            transition: all 0.3s;
-        }
-
-        .dropdown.show {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
-        }
-
-        .dropdown-item {
-            padding: 0.8rem 1rem;
-            cursor: pointer;
-            border-radius: 6px;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 0.8rem;
-        }
-
-        .dropdown-item:hover {
-            background: var(--dark);
-        }
-
-        /* Main Game Container */
-        .game-container {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 1rem;
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 2rem;
-        }
-
-        /* Game Canvas */
-        .game-main {
-            background: var(--darker);
-            border-radius: 12px;
-            padding: 2rem;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .multiplier-display {
-            font-size: 3rem;
-            font-weight: bold;
-            text-align: center;
-            margin: 2rem 0;
-            background: linear-gradient(45deg, var(--primary), var(--secondary));
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-        }
-
-        #gameChart {
-            height: 300px;
-            margin: 2rem 0;
-        }
-
-        /* Betting Panel */
-        .bet-panel {
-            background: var(--darker);
-            border-radius: 12px;
-            padding: 2rem;
-        }
-
-        .balance-card {
-            background: linear-gradient(45deg, var(--primary), var(--accent));
-            padding: 1.5rem;
-            border-radius: 10px;
-            margin-bottom: 2rem;
-        }
-
-        .balance-label {
-            font-size: 0.9rem;
-            opacity: 0.8;
-        }
-
-        .balance-amount {
-            font-size: 2rem;
-            font-weight: bold;
-            margin: 0.5rem 0;
-        }
-
-        .bet-controls {
-            display: grid;
-            gap: 1rem;
-        }
-
-        .input-group {
-            position: relative;
-        }
-
-        input {
-            width: 100%;
-            padding: 1rem;
-            background: var(--dark);
-            border: 2px solid var(--gray);
-            border-radius: 8px;
-            color: var(--light);
-            font-size: 1rem;
-            transition: all 0.3s;
-        }
-
-        input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 10px rgba(0, 255, 204, 0.2);
-        }
-
-        .btn-group {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 0.5rem;
-            margin: 1rem 0;
-        }
-
-        .btn {
-            padding: 0.8rem;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.3s;
-        }
-
-        .btn-primary {
-            background: var(--primary);
-            color: var(--darker);
-        }
-
-        .btn-secondary {
-            background: var(--secondary);
-            color: var(--light);
-        }
-
-        .btn-danger {
-            background: var(--danger);
-            color: var(--light);
-        }
-
-        /* Bet History */
-        .bet-history {
-            background: var(--darker);
-            border-radius: 12px;
-            padding: 2rem;
-            margin-top: 2rem;
-        }
-
-        .history-list {
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .history-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 1rem;
-            background: var(--dark);
-            border-radius: 8px;
-            margin: 0.5rem 0;
+            height: 100vh;
         }
     </style>
 </head>
 <body>
-    <nav class="navbar">
-        <h1>TB CRASH PRO</h1>
-        <div class="account-menu">
-            <div class="account-btn" id="accountBtn">
-                <i class="fas fa-user"></i>
-                <span id="username">Loading...</span>
-                <i class="fas fa-chevron-down"></i>
-            </div>
-            <div class="dropdown" id="dropdown">
-                <div class="dropdown-item" id="depositBtn">
-                    <i class="fas fa-wallet"></i> Deposit
-                </div>
-                <div class="dropdown-item" id="withdrawBtn">
-                    <i class="fas fa-coins"></i> Withdraw
-                </div>
-                <div class="dropdown-item" id="historyBtn">
-                    <i class="fas fa-history"></i> History
-                </div>
-                <div class="dropdown-item" id="logoutBtn">
-                    <i class="fas fa-sign-out-alt"></i> Logout
-                </div>
-            </div>
-        </div>
-    </nav>
-
-    <div class="game-container">
-        <div class="game-main">
-            <div class="multiplier-display" id="multiplierDisplay">
-                1.00x
-            </div>
-            <canvas id="gameChart"></canvas>
-            
-            <div class="game-controls">
-                <button class="btn btn-danger" id="cashoutBtn" disabled>
-                    CASH OUT (1.00x)
-                </button>
-            </div>
-        </div>
-
-        <div class="bet-panel">
-            <div class="balance-card">
-                <div class="balance-label">CURRENT BALANCE</div>
-                <div class="balance-amount">$<span id="balance">0.00</span></div>
-            </div>
-
-            <div class="bet-controls">
-                <input type="number" id="betAmount" placeholder="Enter bet amount" step="0.01">
-                <div class="btn-group">
-                    <button class="btn" onclick="adjustBet(0.5)">½</button>
-                    <button class="btn" onclick="adjustBet(2)">2x</button>
-                    <button class="btn" onclick="adjustBet('max')">MAX</button>
-                    <button class="btn" onclick="clearBet()">CLEAR</button>
-                </div>
-                <button class="btn btn-primary" id="placeBetBtn">PLACE BET</button>
-                <button class="btn btn-secondary" id="autoCashoutBtn">
-                    AUTO CASHOUT: <span id="autoCashoutValue">2.00</span>x
-                </button>
+    <!-- Maintenance Overlay (automatically shown on page load) -->
+    <div class="maintenance-overlay">
+        <div class="maintenance-content">
+            <div class="maintenance-spinner"></div>
+            <h1>⚠️ System Maintenance ⚠️</h1>
+            <p>TB Crash is currently undergoing scheduled maintenance</p>
+            <p>We'll be back soon !</p>
+            <div class="maintenance-timer">
+                <span id="maintenanceTimer">Estimated downtime: 12:00:00</span>
             </div>
         </div>
     </div>
 
-    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore-compat.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/howler@2.2.3/dist/howler.min.js"></script>
-
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyDfK_HayFBawYzgIcGXQsQ4ynyCrVHHL8A",
-            authDomain: "tbgames-d6995.firebaseapp.com",
-            projectId: "tbgames-d6995",
-            storageBucket: "tbgames-d6995.appspot.com",
-            messagingSenderId: "578117532273",
-            appId: "1:578117532273:web:3e52426b147f1c7e5af9d0",
-            measurementId: "G-VWLDSR92KV"
-        };
+        // Immediately show maintenance on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const startTime = Date.now();
+            
+            // Update timer every second
+            setInterval(() => {
+                const elapsed = Date.now() - startTime;
+                const hours = Math.floor(elapsed / 3600000);
+                const minutes = Math.floor((elapsed % 3600000) / 60000);
+                const seconds = Math.floor((elapsed % 60000) / 1000);
+                
+                document.getElementById('maintenanceTimer').textContent = 
+                    `Estimated downtime: ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }, 1000);
 
-        const app = firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
+            // Block all user interactions
+            document.addEventListener('keydown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            }, true);
 
-        // Game State
-        let user = null;
-        let balance = 0;
-        let currentGame = null;
-        let currentBet = null;
-        let chart = null;
-        let crashPoint = null;
-        let gameStartTime = null;
-        let sounds = {
-            countdown: new Howl({ src: ['https://assets.mixkit.co/sfx/preview/mixkit-retro-game-countdown-921.mp3'] }),
-            cashout: new Howl({ src: ['https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3'] }),
-            crash: new Howl({ src: ['https://assets.mixkit.co/sfx/preview/mixkit-explosion-hit-1694.mp3'] })
-        };
+            document.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            }, true);
 
-        // DOM Elements
-        const accountBtn = document.getElementById('accountBtn');
-        const dropdown = document.getElementById('dropdown');
-        const balanceSpan = document.getElementById('balance');
-        const betAmountInput = document.getElementById('betAmount');
-        const placeBetBtn = document.getElementById('placeBetBtn');
-        const cashoutBtn = document.getElementById('cashoutBtn');
-        const autoCashoutBtn = document.getElementById('autoCashoutBtn');
-
-        // Initialize Chart
-        const ctx = document.getElementById('gameChart').getContext('2d');
-        chart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                datasets: [{
-                    label: 'Multiplier',
-                    borderColor: '#00ffcc',
-                    tension: 0.4,
-                    data: []
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: { display: false }
-                },
-                scales: {
-                    x: { display: false },
-                    y: { 
-                        display: true,
-                        suggestedMin: 1,
-                        suggestedMax: 10
-                    }
-                }
-            }
+            // Force reload after 1 hour (optional)
+            setTimeout(() => {
+                window.location.reload();
+            }, 3600000);
         });
 
-        // Auth State Listener
-        auth.onAuthStateChanged(async user => {
-            if (user) {
-                await initializeUser(user);
-                setupRealTimeListeners();
-            } else {
-                window.location.href = '/login';
+        // Prevent right-click context menu
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+        
+        // Prevent F12, Ctrl+Shift+I, etc.
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'F12' || 
+                (e.ctrlKey && e.shiftKey && e.key === 'I') || 
+                (e.ctrlKey && e.shiftKey && e.key === 'J') ||
+                (e.ctrlKey && e.key === 'U')) {
+                e.preventDefault();
             }
         });
-
-        async function initializeUser(authUser) {
-            user = authUser;
-            document.getElementById('username').textContent = user.email;
-            
-            // Initialize user document
-            const userRef = db.collection('users').doc(user.uid);
-            const doc = await userRef.get();
-            
-            if (!doc.exists) {
-                await userRef.set({
-                    balance: 1000.00,
-                    bets: [],
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-            }
-            
-            await loadBalance();
-        }
-
-        async function loadBalance() {
-            const doc = await db.collection('users').doc(user.uid).get();
-            balance = doc.data().balance;
-            balanceSpan.textContent = balance.toFixed(2);
-        }
-
-        async function placeBet() {
-            const amount = parseFloat(betAmountInput.value);
-            
-            if (amount > balance) {
-                showError('Insufficient balance');
-                return;
-            }
-
-            // Create bet document
-            const betRef = await db.collection('bets').add({
-                userId: user.uid,
-                amount: amount,
-                status: 'pending',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-
-            // Start game
-            currentBet = { id: betRef.id, amount };
-            await db.collection('users').doc(user.uid).update({
-                balance: firebase.firestore.FieldValue.increment(-amount)
-            });
-
-            startNewGame();
-        }
-
-        function startNewGame() {
-            crashPoint = calculateCrashPoint();
-            gameStartTime = Date.now();
-            chart.data.datasets[0].data = [];
-            
-            sounds.countdown.play();
-            
-            const gameLoop = () => {
-                if (!currentBet) return;
-                
-                const elapsed = (Date.now() - gameStartTime) / 1000;
-                const multiplier = Math.min(crashPoint, 1 + (elapsed * 0.05));
-                
-                document.getElementById('multiplierDisplay').textContent = 
-                    `${multiplier.toFixed(2)}x`;
-                
-                cashoutBtn.querySelector('span').textContent = multiplier.toFixed(2);
-                
-                chart.data.datasets[0].data.push(multiplier);
-                chart.update();
-                
-                if (multiplier >= crashPoint) {
-                    endGame(false);
-                } else {
-                    requestAnimationFrame(gameLoop);
-                }
-            };
-            
-            gameLoop();
-        }
-
-        function calculateCrashPoint() {
-            // Provably fair algorithm
-            const hash = crypto.getRandomValues(new Uint32Array(1))[0].toString(16);
-            const crashPoint = Math.max(1.01, (1000000 - (parseInt(hash, 16) % 100000)) / 10000);
-            return crashPoint;
-        }
-
-        async function cashout() {
-            endGame(true);
-        }
-
-        async function endGame(manualCashout) {
-            const multiplier = manualCashout ? 
-                parseFloat(cashoutBtn.querySelector('span').textContent) : 
-                crashPoint;
-
-            const winAmount = currentBet.amount * multiplier;
-            
-            await db.collection('users').doc(user.uid).update({
-                balance: firebase.firestore.FieldValue.increment(winAmount)
-            });
-            
-            await db.collection('bets').doc(currentBet.id).update({
-                status: 'completed',
-                multiplier: multiplier,
-                payout: winAmount
-            });
-
-            if (manualCashout) sounds.cashout.play();
-            else sounds.crash.play();
-
-            resetGame();
-        }
-
-        function resetGame() {
-            currentBet = null;
-            crashPoint = null;
-            chart.data.datasets[0].data = [];
-            chart.update();
-        }
-
-        // Event Listeners
-        accountBtn.addEventListener('click', () => {
-            dropdown.classList.toggle('show');
-        });
-
-        document.addEventListener('click', (e) => {
-            if (!accountBtn.contains(e.target)) {
-                dropdown.classList.remove('show');
-            }
-        });
-
-        logoutBtn.addEventListener('click', () => {
-            auth.signOut();
-        });
-
-        placeBetBtn.addEventListener('click', placeBet);
-        cashoutBtn.addEventListener('click', cashout);
-
-        // Utility Functions
-        function adjustBet(multiplier) {
-            if (multiplier === 'max') {
-                betAmountInput.value = balance.toFixed(2);
-            } else {
-                betAmountInput.value = Math.min(
-                    balance, 
-                    (betAmountInput.value || 0) * multiplier
-                ).toFixed(2);
-            }
-        }
-
-        function clearBet() {
-            betAmountInput.value = '';
-        }
-
-        function showError(message) {
-            const error = document.createElement('div');
-            error.className = 'error-message';
-            error.textContent = message;
-            document.body.appendChild(error);
-            setTimeout(() => error.remove(), 3000);
-        }
     </script>
 </body>
 </html>

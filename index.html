@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crash Game</title>
+    <title>Crash Game V2</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -1010,51 +1010,53 @@
         }
 
         // Place a bet
-        function placeBet() {
-            if (!state.user) {
-                alert("Please login to play");
-                return;
-            }
-            
-            if (state.gameState !== 'waiting' && state.gameState !== 'counting') return;
-            if (state.currentBet <= 0 || state.currentBet > state.balance) return;
-            if (state.userBet) return; // Already have a bet
-            
-            const newBalance = state.balance - state.currentBet;
-            updateUserBalance(newBalance);
-            
-            state.userBet = {
-                amount: state.currentBet,
-                cashedOut: false,
-                crashed: false,
-                cashoutMultiplier: 0
-            };
-            state.bets.push(state.userBet);
-            
-            updateUI();
-            updateBetsList();
+        async function placeBet() {
+        if (!state.user) {
+            alert("Please login to play");
+            return;
         }
+        
+        if (state.gameState !== 'waiting' && state.gameState !== 'counting') return;
+        if (state.currentBet <= 0 || state.currentBet > state.balance) return;
+        if (state.userBet) return; // Already have a bet
+        
+        const newBalance = state.balance - state.currentBet;
+        state.balance = newBalance; // Update local state immediately
+        await updateUserBalance(newBalance); // Save to Firestore
+        
+        state.userBet = {
+            amount: state.currentBet,
+            cashedOut: false,
+            crashed: false,
+            cashoutMultiplier: 0
+        };
+        state.bets.push(state.userBet);
+        
+        updateUI();
+        updateBetsList();
+    }
 
-        // Cash out
-        function cashout() {
-            if (state.gameState !== 'flying') return;
-            if (!state.userBet || state.userBet.cashedOut) return;
-            
-            const winAmount = Math.floor(state.userBet.amount * state.currentMultiplier);
-            const newBalance = state.balance + winAmount;
-            updateUserBalance(newBalance);
-            
-            state.userBet.cashedOut = true;
-            state.userBet.cashoutMultiplier = state.currentMultiplier;
-            
-            // Show win animation for big wins
-            if (winAmount >= state.userBet.amount * 2) {
-                showWin(winAmount);
-            }
-            
-            updateUI();
-            updateBetsList();
+    // Modified cashout function
+    async function cashout() {
+        if (state.gameState !== 'flying') return;
+        if (!state.userBet || state.userBet.cashedOut) return;
+        
+        const winAmount = Math.floor(state.userBet.amount * state.currentMultiplier);
+        const newBalance = state.balance + winAmount;
+        state.balance = newBalance; // Update local state immediately
+        await updateUserBalance(newBalance); // Save to Firestore
+        
+        state.userBet.cashedOut = true;
+        state.userBet.cashoutMultiplier = state.currentMultiplier;
+        
+        // Show win animation for big wins
+        if (winAmount >= state.userBet.amount * 2) {
+            showWin(winAmount);
         }
+        
+        updateUI();
+        updateBetsList();
+    }
 
         // Generate random history
         function generateHistory() {

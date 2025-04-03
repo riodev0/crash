@@ -7,7 +7,7 @@ const firebaseConfig = {
   messagingSenderId: "578117532273",
   appId: "1:578117532273:web:3e52426b147f1c7e5af9d0"
 };
-
+print("game.js update")
 // Initialize Firebase
 const app = firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();

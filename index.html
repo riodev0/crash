@@ -74,28 +74,19 @@
             height: 300px;
             background: var(--darker);
             border-radius: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             margin-bottom: 2rem;
             position: relative;
             overflow: hidden;
         }
         
-        .multiplier-display {
-            position: absolute;
-            top: 1rem;
-            left: 1rem;
-            font-size: 1.5rem;
+        .multiplier {
+            font-size: 4rem;
             font-weight: 700;
             color: var(--primary);
-            z-index: 3;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-        }
-        
-        .graph-container {
-            width: 100%;
-            height: 100%;
-            position: relative;
+            z-index: 2;
         }
         
         .graph-line {
@@ -103,59 +94,9 @@
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 100%;
-            stroke-width: 2;
-            fill: none;
-        }
-        
-        .graph-path {
-            stroke: var(--primary);
-            stroke-width: 3;
-            fill: none;
-        }
-        
-        .players-list {
-            position: absolute;
-            bottom: 1rem;
-            right: 1rem;
-            z-index: 3;
-            max-width: 200px;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 0.5rem;
-            border-radius: 8px;
-            max-height: 150px;
-            overflow-y: auto;
-        }
-        
-        .player-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.25rem 0;
-            font-size: 0.8rem;
-        }
-        
-        .grid-lines {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-        
-        .grid-line {
-            position: absolute;
-            width: 100%;
-            height: 1px;
-            background: rgba(255, 255, 255, 0.1);
-        }
-        
-        .grid-label {
-            position: absolute;
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 0.7rem;
-            transform: translateX(-100%);
-            padding-right: 0.5rem;
+            height: 0;
+            background: var(--primary);
+            z-index: 1;
         }
         
         .bet-controls {
@@ -360,17 +301,8 @@
 
     <div class="game-container">
         <div class="crash-display">
-            <div class="multiplier-display" id="multiplier">1.00x</div>
-            
-            <div class="graph-container">
-                <svg class="graph-line" id="graph-line" viewBox="0 0 1000 300" preserveAspectRatio="none">
-                    <path class="graph-path" id="graph-path" d="M0,300 L1000,300" />
-                </svg>
-                
-                <div class="grid-lines" id="grid-lines"></div>
-                
-                <div class="players-list" id="players-list"></div>
-            </div>
+            <div class="multiplier" id="multiplier">1.00x</div>
+            <div class="graph-line" id="graph-line"></div>
         </div>
         
         <div class="bet-controls">
@@ -464,9 +396,6 @@
         let startTime = 0;
         let autoCashoutEnabled = false;
         let autoCashoutValue = 0;
-        let graphPoints = [];
-        let players = [];
-        let maxDisplayMultiplier = 10; // Initial max multiplier for grid
 
         const balanceEl = document.getElementById('balance');
         const multiplierEl = document.getElementById('multiplier');
@@ -485,9 +414,7 @@
         const logoutBtn = document.getElementById('logout-btn');
         const referralBtn = document.getElementById('referral-btn');
         const copyBtn = document.getElementById('copy-btn');
-        const graphPath = document.getElementById('graph-path');
-        const gridLines = document.getElementById('grid-lines');
-        const playersList = document.getElementById('players-list');
+        const graphLine = document.getElementById('graph-line');
 
         function formatMoney(value) {
             if (value >= 1e6) return (value/1e6).toFixed(2)+'M';
@@ -498,138 +425,7 @@
         function calculateCrashPoint() {
             const rand = Math.random();
             const houseEdge = 0.05;
-            const crashPoint = Math.max(1, (1 - houseEdge) / (1 - rand));
-            
-            // Generate a random-looking graph that doesn't reveal the crash point
-            generateRandomGraphPoints();
-            
-            return crashPoint;
-        }
-
-        function generateRandomGraphPoints() {
-            graphPoints = [];
-            const duration = 5 + Math.random() * 10; // Random duration between 5-15 seconds
-            const steps = 1000; // Number of points in our graph
-            
-            // Generate a random-looking curve that doesn't predict the crash
-            let currentMultiplier = 1.0;
-            let velocity = 0.5 + Math.random() * 0.5; // Initial velocity
-            
-            for (let i = 0; i <= steps; i++) {
-                const t = i / steps * duration;
-                
-                // Randomly adjust velocity
-                velocity += (Math.random() - 0.5) * 0.2;
-                velocity = Math.max(0.1, Math.min(2.0, velocity)); // Keep within bounds
-                
-                // Apply velocity to multiplier
-                currentMultiplier += velocity * (t / steps);
-                
-                // Add some randomness
-                currentMultiplier += (Math.random() - 0.5) * 0.1 * currentMultiplier;
-                
-                // Ensure multiplier doesn't go below 1
-                currentMultiplier = Math.max(1.0, currentMultiplier);
-                
-                graphPoints.push({
-                    time: t,
-                    multiplier: currentMultiplier
-                });
-            }
-            
-            // Update max display multiplier based on initial graph
-            maxDisplayMultiplier = Math.max(10, 
-                Math.ceil(graphPoints[graphPoints.length - 1].multiplier * 1.2 / 5) * 5
-            );
-        }
-
-        function drawGridLines() {
-            gridLines.innerHTML = '';
-            
-            // Horizontal grid lines for multiplier markers
-            const multipliers = [1, 2, 5, 10, 20, 50, 100].filter(m => m <= maxDisplayMultiplier);
-            
-            for (const mult of multipliers) {
-                const yPos = (1 - (mult / maxDisplayMultiplier)) * 100;
-                
-                const line = document.createElement('div');
-                line.className = 'grid-line';
-                line.style.top = `${yPos}%`;
-                
-                const label = document.createElement('div');
-                label.className = 'grid-label';
-                label.style.top = `${yPos}%`;
-                label.textContent = `${mult}x`;
-                
-                gridLines.appendChild(line);
-                gridLines.appendChild(label);
-            }
-        }
-
-        function updateGraphPath(currentTime) {
-            let pathData = 'M0,300 '; // Start at bottom left
-            
-            // Find the current position in our pre-generated graph points
-            const currentIndex = graphPoints.findIndex(p => p.time >= currentTime);
-            const pointsToDraw = currentIndex >= 0 ? 
-                graphPoints.slice(0, currentIndex + 1) : 
-                graphPoints;
-            
-            pointsToDraw.forEach((point, i) => {
-                const x = (point.time / graphPoints[graphPoints.length - 1].time) * 1000;
-                const y = 300 - (point.multiplier / maxDisplayMultiplier) * 300;
-                
-                // Ensure we don't get NaN values
-                if (!isNaN(x) && !isNaN(y)) {
-                    if (i === 0) {
-                        pathData += `L${x},${y} `;
-                    } else {
-                        pathData += `L${x},${y} `;
-                    }
-                }
-            });
-            
-            // Only update if we have valid path data
-            if (pathData !== 'M0,300 ') {
-                graphPath.setAttribute('d', pathData);
-            }
-            
-            // Change color based on multiplier volatility
-            if (currentMultiplier > 5) {
-                graphPath.setAttribute('stroke', '#ff6600');
-            } else {
-                graphPath.setAttribute('stroke', 'var(--primary)');
-            }
-        }
-
-        function updatePlayersList() {
-            playersList.innerHTML = '';
-            
-            // Add current player if they're in the game
-            if (gameActive && currentBet > 0) {
-                const playerItem = document.createElement('div');
-                playerItem.className = 'player-item';
-                playerItem.innerHTML = `
-                    <span>${currentUser.email.split('@')[0]}</span>
-                    <span>${currentMultiplier.toFixed(2)}x</span>
-                `;
-                playersList.appendChild(playerItem);
-            }
-            
-            // Add some random fake players for realism
-            const fakePlayerCount = Math.floor(Math.random() * 5) + 3;
-            for (let i = 0; i < fakePlayerCount; i++) {
-                const username = `Player${Math.floor(Math.random() * 1000)}`;
-                const multiplier = (Math.random() * (currentMultiplier - 1) + 1).toFixed(2);
-                
-                const playerItem = document.createElement('div');
-                playerItem.className = 'player-item';
-                playerItem.innerHTML = `
-                    <span>${username}</span>
-                    <span>${multiplier}x</span>
-                `;
-                playersList.appendChild(playerItem);
-            }
+            return Math.max(1, (1 - houseEdge) / (1 - rand)).toFixed(2);
         }
 
         auth.onAuthStateChanged(async user => {
@@ -691,23 +487,13 @@
             placeBetBtn.disabled = true;
             cashOutBtn.disabled = false;
             
-            // Draw grid lines based on initial graph
-            drawGridLines();
-            
-            // Reset graph path
-            graphPath.setAttribute('d', 'M0,300 L1000,300');
-            graphPath.setAttribute('stroke', 'var(--primary)');
-            graphPath.style.strokeDasharray = 'none';
-            
             gameInterval = setInterval(updateMultiplier, 50);
+            graphLine.style.height = '0%';
             graphInterval = setInterval(updateGraph, 50);
         }
 
         function updateMultiplier() {
             const elapsed = (Date.now() - startTime) / 1000;
-            
-            // Calculate current multiplier independently from graph
-            // (graph is just for show, doesn't predict crash)
             currentMultiplier = 1 + Math.pow(elapsed, 1.5) * 0.2;
             
             // Check auto cashout condition
@@ -716,20 +502,23 @@
                 return;
             }
             
-            // Random chance to crash increases with time
-            const crashChance = Math.min(0.95, elapsed / 10);
-            if (Math.random() < crashChance || currentMultiplier >= crashPoint) {
+            if (currentMultiplier >= crashPoint) {
                 endGame(false);
                 return;
             }
             
             multiplierEl.textContent = currentMultiplier.toFixed(2) + 'x';
-            updatePlayersList();
         }
 
         function updateGraph() {
-            const elapsed = (Date.now() - startTime) / 1000;
-            updateGraphPath(elapsed);
+            const progress = (currentMultiplier - 1) / (crashPoint - 1) * 100;
+            graphLine.style.height = `${progress}%`;
+            
+            if (currentMultiplier > crashPoint * 0.8) {
+                graphLine.style.background = 'var(--secondary)';
+            } else {
+                graphLine.style.background = 'var(--primary)';
+            }
         }
 
         async function endGame(cashedOut) {
@@ -765,13 +554,7 @@
                 placeBetBtn.disabled = false;
                 cashOutBtn.disabled = true;
                 multiplierEl.textContent = '1.00x';
-                
-                // Draw the final crash line if the game crashed
-                if (!cashedOut) {
-                    // Show a crash animation
-                    graphPath.setAttribute('stroke', 'var(--secondary)');
-                    graphPath.style.strokeDasharray = '5,5';
-                }
+                graphLine.style.height = '0%';
                 
                 loadUserData();
                 loadHistory();

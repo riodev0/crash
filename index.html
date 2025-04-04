@@ -114,13 +114,48 @@
             fill: none;
         }
         
-        .graph-crash-point {
+        .players-list {
+            position: absolute;
+            bottom: 1rem;
+            right: 1rem;
+            z-index: 3;
+            max-width: 200px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 0.5rem;
+            border-radius: 8px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .player-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.25rem 0;
+            font-size: 0.8rem;
+        }
+        
+        .grid-lines {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             pointer-events: none;
+        }
+        
+        .grid-line {
+            position: absolute;
+            width: 100%;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .grid-label {
+            position: absolute;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.7rem;
+            transform: translateX(-100%);
+            padding-right: 0.5rem;
         }
         
         .bet-controls {
@@ -312,50 +347,6 @@
             font-weight: 700;
             margin-bottom: 0.5rem;
         }
-        
-        .players-list {
-            position: absolute;
-            bottom: 1rem;
-            right: 1rem;
-            z-index: 3;
-            max-width: 200px;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 0.5rem;
-            border-radius: 8px;
-            max-height: 150px;
-            overflow-y: auto;
-        }
-        
-        .player-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.25rem 0;
-            font-size: 0.8rem;
-        }
-        
-        .grid-lines {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-        
-        .grid-line {
-            position: absolute;
-            width: 100%;
-            height: 1px;
-            background: rgba(255, 255, 255, 0.1);
-        }
-        
-        .grid-label {
-            position: absolute;
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 0.7rem;
-            transform: translateX(-100%);
-            padding-right: 0.5rem;
-        }
     </style>
 </head>
 <body>
@@ -475,6 +466,7 @@
         let autoCashoutValue = 0;
         let graphPoints = [];
         let players = [];
+        let maxDisplayMultiplier = 10; // Initial max multiplier for grid
 
         const balanceEl = document.getElementById('balance');
         const multiplierEl = document.getElementById('multiplier');
@@ -508,56 +500,57 @@
             const houseEdge = 0.05;
             const crashPoint = Math.max(1, (1 - houseEdge) / (1 - rand));
             
-            // Generate a realistic-looking graph
-            generateGraphPoints(crashPoint);
+            // Generate a random-looking graph that doesn't reveal the crash point
+            generateRandomGraphPoints();
             
             return crashPoint;
         }
 
-        function generateGraphPoints(crashPoint) {
+        function generateRandomGraphPoints() {
             graphPoints = [];
             const duration = 5 + Math.random() * 10; // Random duration between 5-15 seconds
             const steps = 1000; // Number of points in our graph
             
-            // Generate a base curve that looks like a real crash game
+            // Generate a random-looking curve that doesn't predict the crash
+            let currentMultiplier = 1.0;
+            let velocity = 0.5 + Math.random() * 0.5; // Initial velocity
+            
             for (let i = 0; i <= steps; i++) {
                 const t = i / steps * duration;
-                let multiplier;
                 
-                if (t < 1) {
-                    // Initial steep rise
-                    multiplier = 1 + Math.pow(t, 0.5) * 2;
-                } else if (t < duration * 0.8) {
-                    // Slower but steady growth
-                    multiplier = 3 + Math.pow(t - 1, 1.3) * (crashPoint - 3) / Math.pow(duration * 0.8 - 1, 1.3);
-                } else {
-                    // Final approach to crash point with some volatility
-                    const remaining = crashPoint - multiplier;
-                    const volatility = Math.random() * 0.2 + 0.9;
-                    multiplier += remaining * Math.pow((t - duration * 0.8) / (duration * 0.2), volatility);
-                }
+                // Randomly adjust velocity
+                velocity += (Math.random() - 0.5) * 0.2;
+                velocity = Math.max(0.1, Math.min(2.0, velocity)); // Keep within bounds
                 
-                // Ensure we don't exceed crash point
-                multiplier = Math.min(multiplier, crashPoint);
+                // Apply velocity to multiplier
+                currentMultiplier += velocity * (t / steps);
+                
+                // Add some randomness
+                currentMultiplier += (Math.random() - 0.5) * 0.1 * currentMultiplier;
+                
+                // Ensure multiplier doesn't go below 1
+                currentMultiplier = Math.max(1.0, currentMultiplier);
                 
                 graphPoints.push({
                     time: t,
-                    multiplier: multiplier
+                    multiplier: currentMultiplier
                 });
             }
+            
+            // Update max display multiplier based on initial graph
+            maxDisplayMultiplier = Math.max(10, 
+                Math.ceil(graphPoints[graphPoints.length - 1].multiplier * 1.2 / 5) * 5
+            );
         }
 
         function drawGridLines() {
             gridLines.innerHTML = '';
             
             // Horizontal grid lines for multiplier markers
-            const multipliers = [1, 2, 5, 10, 20, 50, 100];
-            const maxMultiplier = Math.max(...multipliers.filter(m => m <= crashPoint * 1.2));
+            const multipliers = [1, 2, 5, 10, 20, 50, 100].filter(m => m <= maxDisplayMultiplier);
             
             for (const mult of multipliers) {
-                if (mult > maxMultiplier) continue;
-                
-                const yPos = (1 - (mult / maxMultiplier)) * 100;
+                const yPos = (1 - (mult / maxDisplayMultiplier)) * 100;
                 
                 const line = document.createElement('div');
                 line.className = 'grid-line';
@@ -584,16 +577,25 @@
             
             pointsToDraw.forEach((point, i) => {
                 const x = (point.time / graphPoints[graphPoints.length - 1].time) * 1000;
-                const y = 300 - (point.multiplier / crashPoint) * 300;
-                pathData += `L${x},${y} `;
+                const y = 300 - (point.multiplier / maxDisplayMultiplier) * 300;
+                
+                // Ensure we don't get NaN values
+                if (!isNaN(x) && !isNaN(y)) {
+                    if (i === 0) {
+                        pathData += `L${x},${y} `;
+                    } else {
+                        pathData += `L${x},${y} `;
+                    }
+                }
             });
             
-            graphPath.setAttribute('d', pathData);
+            // Only update if we have valid path data
+            if (pathData !== 'M0,300 ') {
+                graphPath.setAttribute('d', pathData);
+            }
             
             // Change color based on multiplier volatility
-            if (currentMultiplier > crashPoint * 0.9) {
-                graphPath.setAttribute('stroke', 'var(--secondary)');
-            } else if (currentMultiplier > crashPoint * 0.7) {
+            if (currentMultiplier > 5) {
                 graphPath.setAttribute('stroke', '#ff6600');
             } else {
                 graphPath.setAttribute('stroke', 'var(--primary)');
@@ -689,8 +691,13 @@
             placeBetBtn.disabled = true;
             cashOutBtn.disabled = false;
             
-            // Draw grid lines based on crash point
+            // Draw grid lines based on initial graph
             drawGridLines();
+            
+            // Reset graph path
+            graphPath.setAttribute('d', 'M0,300 L1000,300');
+            graphPath.setAttribute('stroke', 'var(--primary)');
+            graphPath.style.strokeDasharray = 'none';
             
             gameInterval = setInterval(updateMultiplier, 50);
             graphInterval = setInterval(updateGraph, 50);
@@ -699,13 +706,9 @@
         function updateMultiplier() {
             const elapsed = (Date.now() - startTime) / 1000;
             
-            // Find the current multiplier from our pre-generated graph points
-            const currentPoint = graphPoints.find(p => p.time >= elapsed);
-            if (currentPoint) {
-                currentMultiplier = currentPoint.multiplier;
-            } else {
-                currentMultiplier = graphPoints[graphPoints.length - 1].multiplier;
-            }
+            // Calculate current multiplier independently from graph
+            // (graph is just for show, doesn't predict crash)
+            currentMultiplier = 1 + Math.pow(elapsed, 1.5) * 0.2;
             
             // Check auto cashout condition
             if(autoCashoutEnabled && currentMultiplier >= autoCashoutValue) {
@@ -713,7 +716,9 @@
                 return;
             }
             
-            if (currentMultiplier >= crashPoint) {
+            // Random chance to crash increases with time
+            const crashChance = Math.min(0.95, elapsed / 10);
+            if (Math.random() < crashChance || currentMultiplier >= crashPoint) {
                 endGame(false);
                 return;
             }
@@ -763,10 +768,7 @@
                 
                 // Draw the final crash line if the game crashed
                 if (!cashedOut) {
-                    const elapsed = graphPoints[graphPoints.length - 1].time;
-                    updateGraphPath(elapsed);
-                    
-                    // Add a crash effect
+                    // Show a crash animation
                     graphPath.setAttribute('stroke', 'var(--secondary)');
                     graphPath.style.strokeDasharray = '5,5';
                 }

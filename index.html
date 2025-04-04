@@ -136,6 +136,17 @@
             cursor: pointer;
         }
         
+        .auto-group {
+            margin-top: 1rem;
+        }
+        
+        .auto-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+            font-weight: 600;
+        }
+        
         .action-buttons {
             display: flex;
             gap: 1rem;
@@ -304,6 +315,11 @@
                 </div>
             </div>
             
+            <div class="auto-group">
+                <label for="auto-cashout">Auto Cashout (e.g., 2.00)</label>
+                <input type="number" id="auto-cashout" placeholder="Set auto cashout" min="1.00" step="0.01">
+            </div>
+            
             <div class="action-buttons">
                 <button class="btn-bet" id="place-bet">BET</button>
                 <button class="btn-cashout" id="cash-out" disabled>CASH OUT</button>
@@ -378,10 +394,13 @@
         let gameInterval = null;
         let graphInterval = null;
         let startTime = 0;
+        let autoCashoutEnabled = false;
+        let autoCashoutValue = 0;
 
         const balanceEl = document.getElementById('balance');
         const multiplierEl = document.getElementById('multiplier');
         const betAmountEl = document.getElementById('bet-amount');
+        const autoCashoutEl = document.getElementById('auto-cashout');
         const placeBetBtn = document.getElementById('place-bet');
         const cashOutBtn = document.getElementById('cash-out');
         const historyList = document.getElementById('history-list');
@@ -444,10 +463,16 @@
                 const game = doc.data();
                 const item = document.createElement('div');
                 item.className = 'history-item';
+                
+                const username = game.username?.split('@')[0] || 'Anonymous';
+                const multiplier = game.multiplier + 'x';
+                const bet = '$' + formatMoney(game.bet);
+                const autoCashout = game.autoCashout ? `(Auto ${game.autoCashout}x)` : '';
+                
                 item.innerHTML = `
-                    <span>${game.username?.split('@')[0] || 'Anonymous'}</span>
-                    <span>${game.multiplier}x</span>
-                    <span>$${formatMoney(game.bet)}</span>
+                    <span>${username}</span>
+                    <span>${multiplier} ${autoCashout}</span>
+                    <span>${bet}</span>
                 `;
                 historyList.appendChild(item);
             });
@@ -470,6 +495,12 @@
         function updateMultiplier() {
             const elapsed = (Date.now() - startTime) / 1000;
             currentMultiplier = 1 + Math.pow(elapsed, 1.5) * 0.2;
+            
+            // Check auto cashout condition
+            if(autoCashoutEnabled && currentMultiplier >= autoCashoutValue) {
+                endGame(true);
+                return;
+            }
             
             if (currentMultiplier >= crashPoint) {
                 endGame(false);
@@ -512,9 +543,14 @@
                     multiplier: multiplier.toFixed(2),
                     cashedOut: cashedOut,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                    username: currentUser.email
+                    username: currentUser.email,
+                    autoCashout: autoCashoutEnabled ? autoCashoutValue : null
                 });
 
+                // Reset auto cashout
+                autoCashoutEnabled = false;
+                autoCashoutEl.value = '';
+                
                 placeBetBtn.disabled = false;
                 cashOutBtn.disabled = true;
                 multiplierEl.textContent = '1.00x';
@@ -529,10 +565,23 @@
 
         placeBetBtn.addEventListener('click', async () => {
             const betAmount = parseFloat(betAmountEl.value);
+            const autoCashout = parseFloat(autoCashoutEl.value);
             
             if (isNaN(betAmount) || betAmount < 1) {
                 alert('Please enter a valid bet amount');
                 return;
+            }
+            
+            if (!isNaN(autoCashout)) {
+                if(autoCashout < 1.00) {
+                    alert('Auto cashout must be at least 1.00x');
+                    return;
+                }
+                autoCashoutEnabled = true;
+                autoCashoutValue = autoCashout;
+            } else {
+                autoCashoutEnabled = false;
+                autoCashoutValue = 0;
             }
             
             if (betAmount > userData.balance) {
@@ -578,6 +627,15 @@
                 
                 betAmountEl.value = newAmount.toFixed(2);
             });
+        });
+
+        autoCashoutEl.addEventListener('input', () => {
+            const value = parseFloat(autoCashoutEl.value);
+            if (!isNaN(value) && value < 1.00) {
+                autoCashoutEl.setCustomValidity('Must be at least 1.00');
+            } else {
+                autoCashoutEl.setCustomValidity('');
+            }
         });
 
         accountBtn.addEventListener('click', () => {

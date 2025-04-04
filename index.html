@@ -74,19 +74,28 @@
             height: 300px;
             background: var(--darker);
             border-radius: 16px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             margin-bottom: 2rem;
             position: relative;
             overflow: hidden;
         }
         
         .multiplier {
-            font-size: 4rem;
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            font-size: 1.5rem;
             font-weight: 700;
             color: var(--primary);
             z-index: 2;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+        }
+        
+        .graph-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
         }
         
         .graph-line {
@@ -94,9 +103,15 @@
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 0;
-            background: var(--primary);
+            height: 100%;
             z-index: 1;
+        }
+        
+        .graph-path {
+            fill: none;
+            stroke: var(--primary);
+            stroke-width: 3;
+            stroke-linejoin: round;
         }
         
         .bet-controls {
@@ -288,6 +303,25 @@
             font-weight: 700;
             margin-bottom: 0.5rem;
         }
+        
+        .graph-grid {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+        
+        .grid-line {
+            stroke: var(--light-gray);
+            stroke-width: 1;
+            stroke-dasharray: 2,2;
+        }
+        
+        .grid-text {
+            fill: var(--light);
+            font-size: 10px;
+            text-anchor: end;
+        }
     </style>
 </head>
 <body>
@@ -302,7 +336,12 @@
     <div class="game-container">
         <div class="crash-display">
             <div class="multiplier" id="multiplier">1.00x</div>
-            <div class="graph-line" id="graph-line"></div>
+            <div class="graph-container">
+                <svg class="graph-grid" id="graph-grid" viewBox="0 0 1000 300" preserveAspectRatio="none"></svg>
+                <svg class="graph-line" id="graph-line" viewBox="0 0 1000 300" preserveAspectRatio="none">
+                    <path class="graph-path" id="graph-path" d="M0,300" />
+                </svg>
+            </div>
         </div>
         
         <div class="bet-controls">
@@ -396,6 +435,8 @@
         let startTime = 0;
         let autoCashoutEnabled = false;
         let autoCashoutValue = 0;
+        let pathData = "M0,300";
+        let elapsedTime = 0;
 
         const balanceEl = document.getElementById('balance');
         const multiplierEl = document.getElementById('multiplier');
@@ -414,7 +455,30 @@
         const logoutBtn = document.getElementById('logout-btn');
         const referralBtn = document.getElementById('referral-btn');
         const copyBtn = document.getElementById('copy-btn');
-        const graphLine = document.getElementById('graph-line');
+        const graphPath = document.getElementById('graph-path');
+        const graphGrid = document.getElementById('graph-grid');
+
+        // Initialize grid
+        function initGrid() {
+            const gridLines = [];
+            const gridText = [];
+            
+            // Horizontal grid lines and labels
+            for (let i = 1; i <= 10; i++) {
+                const y = 300 - (i * 30);
+                gridLines.push(`<line class="grid-line" x1="0" y1="${y}" x2="1000" y2="${y}" />`);
+                gridText.push(`<text class="grid-text" x="990" y="${y + 4}">${i}x</text>`);
+            }
+            
+            // Vertical grid lines (time markers)
+            for (let i = 1; i <= 10; i++) {
+                const x = i * 100;
+                gridLines.push(`<line class="grid-line" x1="${x}" y1="0" x2="${x}" y2="300" />`);
+                gridText.push(`<text class="grid-text" x="${x - 5}" y="295">${i}s</text>`);
+            }
+            
+            graphGrid.innerHTML = gridLines.join('') + gridText.join('');
+        }
 
         function formatMoney(value) {
             if (value >= 1e6) return (value/1e6).toFixed(2)+'M';
@@ -438,6 +502,7 @@
             userEmailEl.textContent = user.email;
             await loadUserData();
             loadHistory();
+            initGrid();
         });
 
         async function loadUserData() {
@@ -483,18 +548,19 @@
             currentMultiplier = 1.0;
             crashPoint = calculateCrashPoint();
             startTime = Date.now();
+            elapsedTime = 0;
+            pathData = "M0,300";
             
             placeBetBtn.disabled = true;
             cashOutBtn.disabled = false;
             
             gameInterval = setInterval(updateMultiplier, 50);
-            graphLine.style.height = '0%';
             graphInterval = setInterval(updateGraph, 50);
         }
 
         function updateMultiplier() {
-            const elapsed = (Date.now() - startTime) / 1000;
-            currentMultiplier = 1 + Math.pow(elapsed, 1.5) * 0.2;
+            elapsedTime = (Date.now() - startTime) / 1000;
+            currentMultiplier = 1 + Math.pow(elapsedTime, 1.5) * 0.2;
             
             // Check auto cashout condition
             if(autoCashoutEnabled && currentMultiplier >= autoCashoutValue) {
@@ -511,13 +577,17 @@
         }
 
         function updateGraph() {
-            const progress = (currentMultiplier - 1) / (crashPoint - 1) * 100;
-            graphLine.style.height = `${progress}%`;
+            const x = Math.min(1000, elapsedTime * 100); // 10px per second
+            const y = 300 - (currentMultiplier * 30); // 30px per 1x multiplier
             
+            pathData += ` L${x},${y}`;
+            graphPath.setAttribute('d', pathData);
+            
+            // Change color as multiplier increases
             if (currentMultiplier > crashPoint * 0.8) {
-                graphLine.style.background = 'var(--secondary)';
+                graphPath.style.stroke = 'var(--secondary)';
             } else {
-                graphLine.style.background = 'var(--primary)';
+                graphPath.style.stroke = 'var(--primary)';
             }
         }
 
@@ -554,7 +624,13 @@
                 placeBetBtn.disabled = false;
                 cashOutBtn.disabled = true;
                 multiplierEl.textContent = '1.00x';
-                graphLine.style.height = '0%';
+                
+                // Reset graph after a delay
+                setTimeout(() => {
+                    pathData = "M0,300";
+                    graphPath.setAttribute('d', pathData);
+                    graphPath.style.stroke = 'var(--primary)';
+                }, 2000);
                 
                 loadUserData();
                 loadHistory();

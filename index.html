@@ -190,9 +190,15 @@
             border-radius: 8px;
             display: flex;
             justify-content: space-between;
+            font-size: 0.9rem;
         }
         
-        /* Modal Styles */
+        .history-item span:nth-child(1) {
+            width: 40%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
         .modal {
             display: none;
             position: fixed;
@@ -290,7 +296,7 @@
         
         <div class="bet-controls">
             <div class="input-group">
-                <input type="number" id="bet-amount" placeholder="Bet amount" min="1">
+                <input type="number" id="bet-amount" placeholder="Bet amount" min="1" step="0.01">
                 <div class="quick-bets">
                     <button class="quick-bet" data-action="half">½</button>
                     <button class="quick-bet" data-action="double">2x</button>
@@ -310,7 +316,6 @@
         </div>
     </div>
 
-    <!-- Account Modal -->
     <div class="modal" id="account-modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -323,7 +328,6 @@
         </div>
     </div>
 
-    <!-- Referral Modal -->
     <div class="modal" id="referral-modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -351,7 +355,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore-compat.js"></script>
     <script>
-        // Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyDfK_HayFBawYzgIcGXQsQ4ynyCrVHHL8A",
             authDomain: "tbgames-d6995.firebaseapp.com",
@@ -361,13 +364,11 @@
             appId: "1:578117532273:web:3e52426b147f1c7e5af9d0",
             measurementId: "G-VWLDSR92KV"
         };
-        
-        // Initialize Firebase
+
         const app = firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
-        
-        // Game State
+
         let currentUser = null;
         let userData = null;
         let gameActive = false;
@@ -377,8 +378,7 @@
         let gameInterval = null;
         let graphInterval = null;
         let startTime = 0;
-        
-        // DOM Elements
+
         const balanceEl = document.getElementById('balance');
         const multiplierEl = document.getElementById('multiplier');
         const betAmountEl = document.getElementById('bet-amount');
@@ -396,8 +396,19 @@
         const referralBtn = document.getElementById('referral-btn');
         const copyBtn = document.getElementById('copy-btn');
         const graphLine = document.getElementById('graph-line');
-        
-        // Auth State Listener
+
+        function formatMoney(value) {
+            if (value >= 1e6) return (value/1e6).toFixed(2)+'M';
+            if (value >= 1e3) return (value/1e3).toFixed(2)+'k';
+            return value.toFixed(2);
+        }
+
+        function calculateCrashPoint() {
+            const rand = Math.random();
+            const houseEdge = 0.05;
+            return Math.max(1, (1 - houseEdge) / (1 - rand)).toFixed(2);
+        }
+
         auth.onAuthStateChanged(async user => {
             if (!user) {
                 window.location.href = 'https://riodev0.github.io/login';
@@ -409,26 +420,23 @@
             await loadUserData();
             loadHistory();
         });
-        
-        // Load User Data
+
         async function loadUserData() {
             const doc = await db.collection('users').doc(currentUser.uid).get();
             userData = doc.data();
-            balanceEl.textContent = userData.balance;
+            balanceEl.textContent = formatMoney(userData.balance);
             
-            // Set referral data
             if (userData.referralCode) {
                 userReferralCodeEl.value = userData.referralCode;
                 referralCountEl.textContent = userData.referrals?.length || 0;
-                referralEarningsEl.textContent = userData.referralEarnings || 0;
+                referralEarningsEl.textContent = formatMoney(userData.referralEarnings || 0);
             }
         }
-        
-        // Load Game History
+
         async function loadHistory() {
             const snapshot = await db.collection('games')
                 .orderBy('timestamp', 'desc')
-                .limit(10)
+                .limit(7)
                 .get();
             
             historyList.innerHTML = '';
@@ -437,20 +445,14 @@
                 const item = document.createElement('div');
                 item.className = 'history-item';
                 item.innerHTML = `
+                    <span>${game.username?.split('@')[0] || 'Anonymous'}</span>
                     <span>${game.multiplier}x</span>
-                    <span>$${game.bet}</span>
+                    <span>$${formatMoney(game.bet)}</span>
                 `;
                 historyList.appendChild(item);
             });
         }
-        
-        // Game Logic
-        function calculateCrashPoint() {
-            // Simplified crash algorithm
-            const e = 100 / (1 + Math.random() * 10);
-            return Math.max(1, e.toFixed(2));
-        }
-        
+
         function startGame() {
             gameActive = true;
             currentMultiplier = 1.0;
@@ -460,17 +462,14 @@
             placeBetBtn.disabled = true;
             cashOutBtn.disabled = false;
             
-            // Start multiplier animation
             gameInterval = setInterval(updateMultiplier, 50);
-            
-            // Start graph animation
             graphLine.style.height = '0%';
             graphInterval = setInterval(updateGraph, 50);
         }
-        
+
         function updateMultiplier() {
             const elapsed = (Date.now() - startTime) / 1000;
-            currentMultiplier = 1 + (elapsed * 0.05);
+            currentMultiplier = 1 + Math.pow(elapsed, 1.5) * 0.2;
             
             if (currentMultiplier >= crashPoint) {
                 endGame(false);
@@ -479,53 +478,56 @@
             
             multiplierEl.textContent = currentMultiplier.toFixed(2) + 'x';
         }
-        
+
         function updateGraph() {
             const progress = (currentMultiplier - 1) / (crashPoint - 1) * 100;
             graphLine.style.height = `${progress}%`;
             
-            // Change color based on multiplier
             if (currentMultiplier > crashPoint * 0.8) {
                 graphLine.style.background = 'var(--secondary)';
             } else {
                 graphLine.style.background = 'var(--primary)';
             }
         }
-        
-        function endGame(cashedOut) {
+
+        async function endGame(cashedOut) {
             clearInterval(gameInterval);
             clearInterval(graphInterval);
             gameActive = false;
             
             const multiplier = cashedOut ? currentMultiplier : 1;
             const winnings = currentBet * multiplier;
-            
-            // Update balance
-            db.collection('users').doc(currentUser.uid).update({
-                balance: firebase.firestore.FieldValue.increment(winnings - currentBet)
-            });
-            
-            // Save game result
-            db.collection('games').add({
-                bet: currentBet,
-                multiplier: multiplier.toFixed(2),
-                cashedOut: cashedOut,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            
-            // Reset UI
-            placeBetBtn.disabled = false;
-            cashOutBtn.disabled = true;
-            multiplierEl.textContent = '1.00x';
-            graphLine.style.height = '0%';
-            
-            // Reload data
-            loadUserData();
-            loadHistory();
+
+            try {
+                if (cashedOut) {
+                    await db.collection('users').doc(currentUser.uid).update({
+                        balance: firebase.firestore.FieldValue.increment(winnings)
+                    });
+                    userData.balance += winnings;
+                    balanceEl.textContent = formatMoney(userData.balance);
+                }
+
+                await db.collection('games').add({
+                    bet: currentBet,
+                    multiplier: multiplier.toFixed(2),
+                    cashedOut: cashedOut,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    username: currentUser.email
+                });
+
+                placeBetBtn.disabled = false;
+                cashOutBtn.disabled = true;
+                multiplierEl.textContent = '1.00x';
+                graphLine.style.height = '0%';
+                
+                loadUserData();
+                loadHistory();
+            } catch (error) {
+                console.error('Game error:', error);
+            }
         }
-        
-        // Event Listeners
-        placeBetBtn.addEventListener('click', () => {
+
+        placeBetBtn.addEventListener('click', async () => {
             const betAmount = parseFloat(betAmountEl.value);
             
             if (isNaN(betAmount) || betAmount < 1) {
@@ -538,16 +540,25 @@
                 return;
             }
             
-            currentBet = betAmount;
-            startGame();
+            try {
+                await db.collection('users').doc(currentUser.uid).update({
+                    balance: firebase.firestore.FieldValue.increment(-betAmount)
+                });
+                userData.balance -= betAmount;
+                balanceEl.textContent = formatMoney(userData.balance);
+                
+                currentBet = betAmount;
+                startGame();
+            } catch (error) {
+                alert('Error placing bet: ' + error.message);
+            }
         });
-        
+
         cashOutBtn.addEventListener('click', () => {
             if (!gameActive) return;
             endGame(true);
         });
-        
-        // Quick Bet Buttons
+
         document.querySelectorAll('.quick-bet').forEach(btn => {
             btn.addEventListener('click', () => {
                 const action = btn.getAttribute('data-action');
@@ -565,42 +576,36 @@
                         break;
                 }
                 
-                betAmountEl.value = newAmount;
+                betAmountEl.value = newAmount.toFixed(2);
             });
         });
-        
-        // Account Modal
+
         accountBtn.addEventListener('click', () => {
             accountModal.style.display = 'flex';
         });
-        
-        // Referral Modal
+
         referralBtn.addEventListener('click', () => {
             accountModal.style.display = 'none';
             referralModal.style.display = 'flex';
         });
-        
-        // Copy Referral Code
+
         copyBtn.addEventListener('click', () => {
             userReferralCodeEl.select();
             document.execCommand('copy');
             alert('Referral code copied!');
         });
-        
-        // Logout
+
         logoutBtn.addEventListener('click', () => {
             auth.signOut();
         });
-        
-        // Close Modals
+
         document.querySelectorAll('.modal-close').forEach(btn => {
             btn.addEventListener('click', () => {
                 accountModal.style.display = 'none';
                 referralModal.style.display = 'none';
             });
         });
-        
-        // Close modal when clicking outside
+
         window.addEventListener('click', (e) => {
             if (e.target === accountModal) {
                 accountModal.style.display = 'none';

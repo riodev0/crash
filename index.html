@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,7 +6,324 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TB Crash</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
+    <style>
+        :root {
+            --primary: #00ffcc;
+            --primary-dark: #00cca3;
+            --secondary: #ff00aa;
+            --dark: #121212;
+            --darker: #0a0a0a;
+            --light: #ffffff;
+            --gray: #333333;
+            --light-gray: #444444;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--dark);
+            color: var(--light);
+            min-height: 100vh;
+        }
+        
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            background: rgba(30, 30, 30, 0.9);
+            border-bottom: 1px solid var(--gray);
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        .balance {
+            background: var(--gray);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        
+        .account-btn {
+            background: var(--gray);
+            border: none;
+            color: var(--light);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        
+        .game-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        
+        .crash-display {
+            height: 300px;
+            background: var(--darker);
+            border-radius: 16px;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .multiplier {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            z-index: 2;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+        }
+        
+        .graph-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        .graph-line {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        .graph-path {
+            fill: none;
+            stroke: var(--primary);
+            stroke-width: 3;
+            stroke-linejoin: round;
+        }
+        
+        .bet-controls {
+            background: var(--darker);
+            padding: 1.5rem;
+            border-radius: 16px;
+            margin-bottom: 2rem;
+        }
+        
+        .input-group {
+            margin-bottom: 1rem;
+        }
+        
+        input {
+            width: 100%;
+            padding: 1rem;
+            background: var(--gray);
+            border: none;
+            border-radius: 8px;
+            color: var(--light);
+            font-size: 1rem;
+        }
+        
+        .quick-bets {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        
+        .quick-bet {
+            flex: 1;
+            padding: 0.5rem;
+            background: var(--gray);
+            border: none;
+            border-radius: 4px;
+            color: var(--light);
+            cursor: pointer;
+        }
+        
+        .auto-group {
+            margin-top: 1rem;
+        }
+        
+        .auto-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+            font-weight: 600;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .btn-bet, .btn-cashout {
+            flex: 1;
+            padding: 1rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-bet {
+            background: var(--primary);
+            color: var(--dark);
+        }
+        
+        .btn-cashout {
+            background: var(--secondary);
+            color: var(--light);
+        }
+        
+        .btn-bet:hover, .btn-cashout:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn-cashout:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .history {
+            background: var(--darker);
+            padding: 1.5rem;
+            border-radius: 16px;
+        }
+        
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .history-item {
+            background: var(--gray);
+            padding: 0.75rem;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+        }
+        
+        .history-item span:nth-child(1) {
+            width: 40%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background: var(--darker);
+            padding: 2rem;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 400px;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--light);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        .referral-code {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .referral-code input {
+            flex: 1;
+            background: var(--gray);
+            border: none;
+            padding: 1rem;
+            border-radius: 8px;
+            color: var(--light);
+        }
+        
+        .btn-copy {
+            background: var(--primary);
+            border: none;
+            padding: 0 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        
+        .referral-stats {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+        
+        .stat {
+            flex: 1;
+            background: var(--gray);
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .graph-grid {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+        
+        .grid-line {
+            stroke: var(--light-gray);
+            stroke-width: 1;
+            stroke-dasharray: 2,2;
+        }
+        
+        .grid-text {
+            fill: var(--light);
+            font-size: 10px;
+            text-anchor: end;
+        }
+    </style>
 </head>
 <body>
     <nav class="nav">
@@ -54,7 +372,6 @@
         </div>
     </div>
 
-    <!-- Account Modal (your existing system) -->
     <div class="modal" id="account-modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -67,7 +384,6 @@
         </div>
     </div>
 
-    <!-- Referral Modal (your existing system) -->
     <div class="modal" id="referral-modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -91,13 +407,348 @@
         </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-functions.js"></script>
-    
-    <!-- Your client script -->
-    <script src="app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDfK_HayFBawYzgIcGXQsQ4ynyCrVHHL8A",
+            authDomain: "tbgames-d6995.firebaseapp.com",
+            projectId: "tbgames-d6995",
+            storageBucket: "tbgames-d6995.appspot.com",
+            messagingSenderId: "578117532273",
+            appId: "1:578117532273:web:3e52426b147f1c7e5af9d0",
+            measurementId: "G-VWLDSR92KV"
+        };
+
+        const app = firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        let currentUser = null;
+        let userData = null;
+        let gameActive = false;
+        let currentMultiplier = 1.0;
+        let currentBet = 0;
+        let crashPoint = 1.0;
+        let gameInterval = null;
+        let graphInterval = null;
+        let startTime = 0;
+        let autoCashoutEnabled = false;
+        let autoCashoutValue = 0;
+        let pathData = "M0,300";
+        let elapsedTime = 0;
+
+        const balanceEl = document.getElementById('balance');
+        const multiplierEl = document.getElementById('multiplier');
+        const betAmountEl = document.getElementById('bet-amount');
+        const autoCashoutEl = document.getElementById('auto-cashout');
+        const placeBetBtn = document.getElementById('place-bet');
+        const cashOutBtn = document.getElementById('cash-out');
+        const historyList = document.getElementById('history-list');
+        const accountBtn = document.getElementById('account-btn');
+        const accountModal = document.getElementById('account-modal');
+        const referralModal = document.getElementById('referral-modal');
+        const userEmailEl = document.getElementById('user-email');
+        const userReferralCodeEl = document.getElementById('user-referral-code');
+        const referralCountEl = document.getElementById('referral-count');
+        const referralEarningsEl = document.getElementById('referral-earnings');
+        const logoutBtn = document.getElementById('logout-btn');
+        const referralBtn = document.getElementById('referral-btn');
+        const copyBtn = document.getElementById('copy-btn');
+        const graphPath = document.getElementById('graph-path');
+        const graphGrid = document.getElementById('graph-grid');
+
+        // Initialize grid
+        function initGrid() {
+            const gridLines = [];
+            const gridText = [];
+            
+            // Horizontal grid lines and labels
+            for (let i = 1; i <= 10; i++) {
+                const y = 300 - (i * 30);
+                gridLines.push(`<line class="grid-line" x1="0" y1="${y}" x2="1000" y2="${y}" />`);
+                gridText.push(`<text class="grid-text" x="990" y="${y + 4}">${i}x</text>`);
+            }
+            
+            // Vertical grid lines (time markers)
+            for (let i = 1; i <= 10; i++) {
+                const x = i * 100;
+                gridLines.push(`<line class="grid-line" x1="${x}" y1="0" x2="${x}" y2="300" />`);
+                gridText.push(`<text class="grid-text" x="${x - 5}" y="295">${i}s</text>`);
+            }
+            
+            graphGrid.innerHTML = gridLines.join('') + gridText.join('');
+        }
+
+        function formatMoney(value) {
+            if (value >= 1e6) return (value/1e6).toFixed(2)+'M';
+            if (value >= 1e3) return (value/1e3).toFixed(2)+'k';
+            return value.toFixed(2);
+        }
+
+        function calculateCrashPoint() {
+            const rand = Math.random();
+            const houseEdge = 0.05;
+            return Math.max(1, (1 - houseEdge) / (1 - rand)).toFixed(2);
+        }
+
+        auth.onAuthStateChanged(async user => {
+            if (!user) {
+                window.location.href = 'https://riodev0.github.io/login';
+                return;
+            }
+            
+            currentUser = user;
+            userEmailEl.textContent = user.email;
+            await loadUserData();
+            loadHistory();
+            initGrid();
+        });
+
+        async function loadUserData() {
+            const doc = await db.collection('users').doc(currentUser.uid).get();
+            userData = doc.data();
+            balanceEl.textContent = formatMoney(userData.balance);
+            
+            if (userData.referralCode) {
+                userReferralCodeEl.value = userData.referralCode;
+                referralCountEl.textContent = userData.referrals?.length || 0;
+                referralEarningsEl.textContent = formatMoney(userData.referralEarnings || 0);
+            }
+        }
+
+        async function loadHistory() {
+            const snapshot = await db.collection('games')
+                .orderBy('timestamp', 'desc')
+                .limit(7)
+                .get();
+            
+            historyList.innerHTML = '';
+            snapshot.forEach(doc => {
+                const game = doc.data();
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                
+                const username = game.username?.split('@')[0] || 'Anonymous';
+                const multiplier = game.multiplier + 'x';
+                const bet = '$' + formatMoney(game.bet);
+                const autoCashout = game.autoCashout ? `(Auto ${game.autoCashout}x)` : '';
+                
+                item.innerHTML = `
+                    <span>${username}</span>
+                    <span>${multiplier} ${autoCashout}</span>
+                    <span>${bet}</span>
+                `;
+                historyList.appendChild(item);
+            });
+        }
+
+        function startGame() {
+            gameActive = true;
+            currentMultiplier = 1.0;
+            crashPoint = calculateCrashPoint();
+            startTime = Date.now();
+            elapsedTime = 0;
+            pathData = "M0,300";
+            
+            placeBetBtn.disabled = true;
+            cashOutBtn.disabled = false;
+            
+            gameInterval = setInterval(updateMultiplier, 50);
+            graphInterval = setInterval(updateGraph, 50);
+        }
+
+        function updateMultiplier() {
+            elapsedTime = (Date.now() - startTime) / 1000;
+            currentMultiplier = 1 + Math.pow(elapsedTime, 1.5) * 0.2;
+            
+            // Check auto cashout condition
+            if(autoCashoutEnabled && currentMultiplier >= autoCashoutValue) {
+                endGame(true);
+                return;
+            }
+            
+            if (currentMultiplier >= crashPoint) {
+                endGame(false);
+                return;
+            }
+            
+            multiplierEl.textContent = currentMultiplier.toFixed(2) + 'x';
+        }
+
+        function updateGraph() {
+            const x = Math.min(1000, elapsedTime * 100); // 10px per second
+            const y = 300 - (currentMultiplier * 30); // 30px per 1x multiplier
+            
+            pathData += ` L${x},${y}`;
+            graphPath.setAttribute('d', pathData);
+            
+            // Change color as multiplier increases
+            if (currentMultiplier > crashPoint * 0.8) {
+                graphPath.style.stroke = 'var(--secondary)';
+            } else {
+                graphPath.style.stroke = 'var(--primary)';
+            }
+        }
+
+        async function endGame(cashedOut) {
+            clearInterval(gameInterval);
+            clearInterval(graphInterval);
+            gameActive = false;
+            
+            const multiplier = cashedOut ? currentMultiplier : 1;
+            const winnings = currentBet * multiplier;
+
+            try {
+                if (cashedOut) {
+                    await db.collection('users').doc(currentUser.uid).update({
+                        balance: firebase.firestore.FieldValue.increment(winnings)
+                    });
+                    userData.balance += winnings;
+                    balanceEl.textContent = formatMoney(userData.balance);
+                }
+
+                await db.collection('games').add({
+                    bet: currentBet,
+                    multiplier: multiplier.toFixed(2),
+                    cashedOut: cashedOut,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    username: currentUser.email,
+                    autoCashout: autoCashoutEnabled ? autoCashoutValue : null
+                });
+
+                // Reset auto cashout
+                autoCashoutEnabled = false;
+                autoCashoutEl.value = '';
+                
+                placeBetBtn.disabled = false;
+                cashOutBtn.disabled = true;
+                multiplierEl.textContent = '1.00x';
+                
+                // Reset graph after a delay
+                setTimeout(() => {
+                    pathData = "M0,300";
+                    graphPath.setAttribute('d', pathData);
+                    graphPath.style.stroke = 'var(--primary)';
+                }, 2000);
+                
+                loadUserData();
+                loadHistory();
+            } catch (error) {
+                console.error('Game error:', error);
+            }
+        }
+
+        placeBetBtn.addEventListener('click', async () => {
+            const betAmount = parseFloat(betAmountEl.value);
+            const autoCashout = parseFloat(autoCashoutEl.value);
+            
+            if (isNaN(betAmount) || betAmount < 1) {
+                alert('Please enter a valid bet amount');
+                return;
+            }
+            
+            if (!isNaN(autoCashout)) {
+                if(autoCashout < 1.00) {
+                    alert('Auto cashout must be at least 1.00x');
+                    return;
+                }
+                autoCashoutEnabled = true;
+                autoCashoutValue = autoCashout;
+            } else {
+                autoCashoutEnabled = false;
+                autoCashoutValue = 0;
+            }
+            
+            if (betAmount > userData.balance) {
+                alert('Insufficient balance');
+                return;
+            }
+            
+            try {
+                await db.collection('users').doc(currentUser.uid).update({
+                    balance: firebase.firestore.FieldValue.increment(-betAmount)
+                });
+                userData.balance -= betAmount;
+                balanceEl.textContent = formatMoney(userData.balance);
+                
+                currentBet = betAmount;
+                startGame();
+            } catch (error) {
+                alert('Error placing bet: ' + error.message);
+            }
+        });
+
+        cashOutBtn.addEventListener('click', () => {
+            if (!gameActive) return;
+            endGame(true);
+        });
+
+        document.querySelectorAll('.quick-bet').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const action = btn.getAttribute('data-action');
+                let newAmount = parseFloat(betAmountEl.value) || 0;
+                
+                switch(action) {
+                    case 'half':
+                        newAmount = Math.floor(newAmount / 2);
+                        break;
+                    case 'double':
+                        newAmount = newAmount * 2;
+                        break;
+                    case 'max':
+                        newAmount = userData.balance;
+                        break;
+                }
+                
+                betAmountEl.value = newAmount.toFixed(2);
+            });
+        });
+
+        autoCashoutEl.addEventListener('input', () => {
+            const value = parseFloat(autoCashoutEl.value);
+            if (!isNaN(value) && value < 1.00) {
+                autoCashoutEl.setCustomValidity('Must be at least 1.00');
+            } else {
+                autoCashoutEl.setCustomValidity('');
+            }
+        });
+
+        accountBtn.addEventListener('click', () => {
+            accountModal.style.display = 'flex';
+        });
+
+        referralBtn.addEventListener('click', () => {
+            accountModal.style.display = 'none';
+            referralModal.style.display = 'flex';
+        });
+
+        copyBtn.addEventListener('click', () => {
+            userReferralCodeEl.select();
+            document.execCommand('copy');
+            alert('Referral code copied!');
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            auth.signOut();
+        });
+
+        document.querySelectorAll('.modal-close').forEach(btn => {
+            btn.addEventListener('click', () => {
+                accountModal.style.display = 'none';
+                referralModal.style.display = 'none';
+            });
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target === accountModal) {
+                accountModal.style.display = 'none';
+            }
+            if (e.target === referralModal) {
+                referralModal.style.display = 'none';
+            }
+        });
+    </script>
 </body>
 </html>

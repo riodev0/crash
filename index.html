@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TB Crash ()</title>
+    <title>TB Crash</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -322,28 +323,9 @@
             font-size: 10px;
             text-anchor: end;
         }
-        
-        /* Anti-tampering notification */
-        .tamper-alert {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            background: #ff0000;
-            color: white;
-            text-align: center;
-            padding: 10px;
-            font-weight: bold;
-            z-index: 9999;
-            display: none;
-        }
     </style>
 </head>
 <body>
-    <div class="tamper-alert" id="tamper-alert">
-        Game integrity violation detected! Please refresh the page.
-    </div>
-
     <nav class="nav">
         <div class="logo">TB CRASH</div>
         <div class="balance">$<span id="balance">0</span></div>
@@ -428,420 +410,345 @@
     <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore-compat.js"></script>
-  <script>
-    // Protected game state management
-    const gameState = (function() {
-        'use strict';
-        
-        const state = {
-            currentUser: null,
-            userData: null,
-            gameActive: false,
-            currentMultiplier: 1.0,
-            currentBet: 0,
-            crashPoint: 1.0,
-            gameInterval: null,
-            graphInterval: null,
-            startTime: 0,
-            autoCashoutEnabled: false,
-            autoCashoutValue: 0,
-            pathData: "M0,300",
-            elapsedTime: 0
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDfK_HayFBawYzgIcGXQsQ4ynyCrVHHL8A",
+            authDomain: "tbgames-d6995.firebaseapp.com",
+            projectId: "tbgames-d6995",
+            storageBucket: "tbgames-d6995.appspot.com",
+            messagingSenderId: "578117532273",
+            appId: "1:578117532273:web:3e52426b147f1c7e5af9d0",
+            measurementId: "G-VWLDSR92KV"
         };
-        
-        return {
-            getState: function() {
-                return {
-                    balance: state.userData?.balance || 0,
-                    currentBet: state.currentBet,
-                    gameActive: state.gameActive,
-                    currentMultiplier: state.currentMultiplier
-                };
-            },
-            getCurrentUser: function() { return state.currentUser; },
-            setCurrentUser: function(user) { state.currentUser = user; },
-            getUserData: function() { return state.userData; },
-            setUserData: function(data) { state.userData = data; },
-            startGame: function(betAmount, autoCashout) {
-                state.gameActive = true;
-                state.currentMultiplier = 1.0;
-                state.crashPoint = this.calculateCrashPoint();
-                state.startTime = Date.now();
-                state.elapsedTime = 0;
-                state.pathData = "M0,300";
-                state.currentBet = betAmount;
-                state.autoCashoutEnabled = autoCashout.enabled;
-                state.autoCashoutValue = autoCashout.value;
-            },
-            endGame: function() {
-                clearInterval(state.gameInterval);
-                clearInterval(state.graphInterval);
-                state.gameActive = false;
-                state.autoCashoutEnabled = false;
-                state.autoCashoutValue = 0;
-            },
-            calculateCrashPoint: function() {
-                const rand = Math.random();
-                const houseEdge = 0.05;
-                return Math.max(1, (1 - houseEdge) / (1 - rand)).toFixed(2);
-            },
-            updateMultiplier: function() {
-                state.elapsedTime = (Date.now() - state.startTime) / 1000;
-                state.currentMultiplier = 1 + Math.pow(state.elapsedTime, 1.5) * 0.2;
-                return state.currentMultiplier;
-            },
-            updateGraph: function() {
-                const x = Math.min(1000, state.elapsedTime * 100);
-                const y = 300 - (state.currentMultiplier * 30);
-                state.pathData += ` L${x},${y}`;
-                return {
-                    path: state.pathData,
-                    color: state.currentMultiplier > state.crashPoint * 0.8 ? 
-                        'var(--secondary)' : 'var(--primary)'
-                };
-            },
-            setBalance: function(amount) {
-                if (state.userData) {
-                    state.userData.balance = amount;
-                }
-            }
-        };
-    })();
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyDfK_HayFBawYzgIcGXQsQ4ynyCrVHHL8A",
-        authDomain: "tbgames-d6995.firebaseapp.com",
-        projectId: "tbgames-d6995",
-        storageBucket: "tbgames-d6995.appspot.com",
-        messagingSenderId: "578117532273",
-        appId: "1:578117532273:web:3e52426b147f1c7e5af9d0",
-        measurementId: "G-VWLDSR92KV"
-    };
+        const app = firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
 
-    const app = firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
+        let currentUser = null;
+        let userData = null;
+        let gameActive = false;
+        let currentMultiplier = 1.0;
+        let currentBet = 0;
+        let crashPoint = 1.0;
+        let gameInterval = null;
+        let graphInterval = null;
+        let startTime = 0;
+        let autoCashoutEnabled = false;
+        let autoCashoutValue = 0;
+        let pathData = "M0,300";
+        let elapsedTime = 0;
 
-    // DOM Elements
-    const balanceEl = document.getElementById('balance');
-    const multiplierEl = document.getElementById('multiplier');
-    const betAmountEl = document.getElementById('bet-amount');
-    const autoCashoutEl = document.getElementById('auto-cashout');
-    const placeBetBtn = document.getElementById('place-bet');
-    const cashOutBtn = document.getElementById('cash-out');
-    const historyList = document.getElementById('history-list');
-    const accountBtn = document.getElementById('account-btn');
-    const accountModal = document.getElementById('account-modal');
-    const referralModal = document.getElementById('referral-modal');
-    const userEmailEl = document.getElementById('user-email');
-    const userReferralCodeEl = document.getElementById('user-referral-code');
-    const referralCountEl = document.getElementById('referral-count');
-    const referralEarningsEl = document.getElementById('referral-earnings');
-    const logoutBtn = document.getElementById('logout-btn');
-    const referralBtn = document.getElementById('referral-btn');
-    const copyBtn = document.getElementById('copy-btn');
-    const graphPath = document.getElementById('graph-path');
-    const graphGrid = document.getElementById('graph-grid');
-    const tamperAlert = document.getElementById('tamper-alert');
+        const balanceEl = document.getElementById('balance');
+        const multiplierEl = document.getElementById('multiplier');
+        const betAmountEl = document.getElementById('bet-amount');
+        const autoCashoutEl = document.getElementById('auto-cashout');
+        const placeBetBtn = document.getElementById('place-bet');
+        const cashOutBtn = document.getElementById('cash-out');
+        const historyList = document.getElementById('history-list');
+        const accountBtn = document.getElementById('account-btn');
+        const accountModal = document.getElementById('account-modal');
+        const referralModal = document.getElementById('referral-modal');
+        const userEmailEl = document.getElementById('user-email');
+        const userReferralCodeEl = document.getElementById('user-referral-code');
+        const referralCountEl = document.getElementById('referral-count');
+        const referralEarningsEl = document.getElementById('referral-earnings');
+        const logoutBtn = document.getElementById('logout-btn');
+        const referralBtn = document.getElementById('referral-btn');
+        const copyBtn = document.getElementById('copy-btn');
+        const graphPath = document.getElementById('graph-path');
+        const graphGrid = document.getElementById('graph-grid');
 
-    // Initialize grid
-    function initGrid() {
-        const gridLines = [];
-        const gridText = [];
-        
-        for (let i = 1; i <= 10; i++) {
-            const y = 300 - (i * 30);
-            gridLines.push(`<line class="grid-line" x1="0" y1="${y}" x2="1000" y2="${y}" />`);
-            gridText.push(`<text class="grid-text" x="990" y="${y + 4}">${i}x</text>`);
-        }
-        
-        for (let i = 1; i <= 10; i++) {
-            const x = i * 100;
-            gridLines.push(`<line class="grid-line" x1="${x}" y1="0" x2="${x}" y2="300" />`);
-            gridText.push(`<text class="grid-text" x="${x - 5}" y="295">${i}s</text>`);
-        }
-        
-        graphGrid.innerHTML = gridLines.join('') + gridText.join('');
-    }
-
-    function formatMoney(value) {
-        if (!value) return '0.00';
-        if (value >= 1e6) return (value/1e6).toFixed(2)+'M';
-        if (value >= 1e3) return (value/1e3).toFixed(2)+'k';
-        return value.toFixed(2);
-    }
-
-    // Anti-tampering measures
-    const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-            if (mutation.type === 'attributes') {
-                showTamperAlert();
-            }
-        });
-    });
-
-    observer.observe(document.body, {
-        attributes: true,
-        subtree: true,
-        attributeFilter: ['textContent', 'value']
-    });
-
-    function showTamperAlert() {
-        tamperAlert.style.display = 'block';
-        setTimeout(() => {
-            window.location.reload();
-        }, 3000);
-    }
-
-    setInterval(() => {
-        const state = gameState.getState();
-        if (balanceEl.textContent !== formatMoney(state.balance)) {
-            showTamperAlert();
-        }
-    }, 1000);
-
-    // Auth state handler
-    auth.onAuthStateChanged(async user => {
-        if (!user) {
-            window.location.href = 'https://riodev0.github.io/login';
-            return;
-        }
-        
-        gameState.setCurrentUser(user);
-        userEmailEl.textContent = user.email;
-        await loadUserData();
-        loadHistory();
-        initGrid();
-    });
-
-    async function loadUserData() {
-        const user = gameState.getCurrentUser();
-        const doc = await db.collection('users').doc(user.uid).get();
-        gameState.setUserData(doc.data());
-        
-        balanceEl.textContent = formatMoney(gameState.getUserData().balance);
-        
-        if (gameState.getUserData().referralCode) {
-            userReferralCodeEl.value = gameState.getUserData().referralCode;
-            referralCountEl.textContent = gameState.getUserData().referrals?.length || 0;
-            referralEarningsEl.textContent = formatMoney(gameState.getUserData().referralEarnings || 0);
-        }
-    }
-
-    async function loadHistory() {
-        const snapshot = await db.collection('games')
-            .orderBy('timestamp', 'desc')
-            .limit(7)
-            .get();
-        
-        historyList.innerHTML = '';
-        snapshot.forEach(doc => {
-            const game = doc.data();
-            const item = document.createElement('div');
-            item.className = 'history-item';
+        // Initialize grid
+        function initGrid() {
+            const gridLines = [];
+            const gridText = [];
             
-            const username = game.username?.split('@')[0] || 'Anonymous';
-            const multiplier = game.multiplier + 'x';
-            const bet = '$' + formatMoney(game.bet);
-            const autoCashout = game.autoCashout ? `(Auto ${game.autoCashout}x)` : '';
+            // Horizontal grid lines and labels
+            for (let i = 1; i <= 10; i++) {
+                const y = 300 - (i * 30);
+                gridLines.push(`<line class="grid-line" x1="0" y1="${y}" x2="1000" y2="${y}" />`);
+                gridText.push(`<text class="grid-text" x="990" y="${y + 4}">${i}x</text>`);
+            }
             
-            item.innerHTML = `
-                <span>${username}</span>
-                <span>${multiplier} ${autoCashout}</span>
-                <span>${bet}</span>
-            `;
-            historyList.appendChild(item);
-        });
-    }
-
-    async function placeBet() {
-        const betAmount = parseFloat(betAmountEl.value);
-        const autoCashout = parseFloat(autoCashoutEl.value);
-        
-      
-        
-        if (betAmount < 1) {
-            alert('Minimum bet is $1');
-            return;
+            // Vertical grid lines (time markers)
+            for (let i = 1; i <= 10; i++) {
+                const x = i * 100;
+                gridLines.push(`<line class="grid-line" x1="${x}" y1="0" x2="${x}" y2="300" />`);
+                gridText.push(`<text class="grid-text" x="${x - 5}" y="295">${i}s</text>`);
+            }
+            
+            graphGrid.innerHTML = gridLines.join('') + gridText.join('');
         }
-        
-        const autoCashoutSettings = {
-            enabled: false,
-            value: 0
-        };
-        
-        if (!isNaN(autoCashout)) {
-            if (autoCashout < 1.00) {
-                alert('Auto cashout must be at least 1.00x');
+
+        function formatMoney(value) {
+            if (value >= 1e6) return (value/1e6).toFixed(2)+'M';
+            if (value >= 1e3) return (value/1e3).toFixed(2)+'k';
+            return value.toFixed(2);
+        }
+
+        function calculateCrashPoint() {
+            const rand = Math.random();
+            const houseEdge = 0.05;
+            return Math.max(1, (1 - houseEdge) / (1 - rand)).toFixed(2);
+        }
+
+        auth.onAuthStateChanged(async user => {
+            if (!user) {
+                window.location.href = 'https://riodev0.github.io/login';
                 return;
             }
-            autoCashoutSettings.enabled = true;
-            autoCashoutSettings.value = autoCashout;
+            
+            currentUser = user;
+            userEmailEl.textContent = user.email;
+            await loadUserData();
+            loadHistory();
+            initGrid();
+        });
+
+        async function loadUserData() {
+            const doc = await db.collection('users').doc(currentUser.uid).get();
+            userData = doc.data();
+            balanceEl.textContent = formatMoney(userData.balance);
+            
+            if (userData.referralCode) {
+                userReferralCodeEl.value = userData.referralCode;
+                referralCountEl.textContent = userData.referrals?.length || 0;
+                referralEarningsEl.textContent = formatMoney(userData.referralEarnings || 0);
+            }
         }
 
-        try {
-            const userDoc = await db.collection('users').doc(gameState.getCurrentUser().uid).get();
-            const actualBalance = userDoc.data().balance;
+        async function loadHistory() {
+            const snapshot = await db.collection('games')
+                .orderBy('timestamp', 'desc')
+                .limit(7)
+                .get();
             
-            if (betAmount > actualBalance) {
+            historyList.innerHTML = '';
+            snapshot.forEach(doc => {
+                const game = doc.data();
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                
+                const username = game.username?.split('@')[0] || 'Anonymous';
+                const multiplier = game.multiplier + 'x';
+                const bet = '$' + formatMoney(game.bet);
+                const autoCashout = game.autoCashout ? `(Auto ${game.autoCashout}x)` : '';
+                
+                item.innerHTML = `
+                    <span>${username}</span>
+                    <span>${multiplier} ${autoCashout}</span>
+                    <span>${bet}</span>
+                `;
+                historyList.appendChild(item);
+            });
+        }
+
+        function startGame() {
+            gameActive = true;
+            currentMultiplier = 1.0;
+            crashPoint = calculateCrashPoint();
+            startTime = Date.now();
+            elapsedTime = 0;
+            pathData = "M0,300";
+            
+            placeBetBtn.disabled = true;
+            cashOutBtn.disabled = false;
+            
+            gameInterval = setInterval(updateMultiplier, 50);
+            graphInterval = setInterval(updateGraph, 50);
+        }
+
+        function updateMultiplier() {
+            elapsedTime = (Date.now() - startTime) / 1000;
+            currentMultiplier = 1 + Math.pow(elapsedTime, 1.5) * 0.2;
+            
+            // Check auto cashout condition
+            if(autoCashoutEnabled && currentMultiplier >= autoCashoutValue) {
+                endGame(true);
+                return;
+            }
+            
+            if (currentMultiplier >= crashPoint) {
+                endGame(false);
+                return;
+            }
+            
+            multiplierEl.textContent = currentMultiplier.toFixed(2) + 'x';
+        }
+
+        function updateGraph() {
+            const x = Math.min(1000, elapsedTime * 100); // 10px per second
+            const y = 300 - (currentMultiplier * 30); // 30px per 1x multiplier
+            
+            pathData += ` L${x},${y}`;
+            graphPath.setAttribute('d', pathData);
+            
+            // Change color as multiplier increases
+            if (currentMultiplier > crashPoint * 0.8) {
+                graphPath.style.stroke = 'var(--secondary)';
+            } else {
+                graphPath.style.stroke = 'var(--primary)';
+            }
+        }
+
+        async function endGame(cashedOut) {
+            clearInterval(gameInterval);
+            clearInterval(graphInterval);
+            gameActive = false;
+            
+            const multiplier = cashedOut ? currentMultiplier : 1;
+            const winnings = currentBet * multiplier;
+
+            try {
+                if (cashedOut) {
+                    await db.collection('users').doc(currentUser.uid).update({
+                        balance: firebase.firestore.FieldValue.increment(winnings)
+                    });
+                    userData.balance += winnings;
+                    balanceEl.textContent = formatMoney(userData.balance);
+                }
+
+                await db.collection('games').add({
+                    bet: currentBet,
+                    multiplier: multiplier.toFixed(2),
+                    cashedOut: cashedOut,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    username: currentUser.email,
+                    autoCashout: autoCashoutEnabled ? autoCashoutValue : null
+                });
+
+                // Reset auto cashout
+                autoCashoutEnabled = false;
+                autoCashoutEl.value = '';
+                
+                placeBetBtn.disabled = false;
+                cashOutBtn.disabled = true;
+                multiplierEl.textContent = '1.00x';
+                
+                // Reset graph after a delay
+                setTimeout(() => {
+                    pathData = "M0,300";
+                    graphPath.setAttribute('d', pathData);
+                    graphPath.style.stroke = 'var(--primary)';
+                }, 2000);
+                
+                loadUserData();
+                loadHistory();
+            } catch (error) {
+                console.error('Game error:', error);
+            }
+        }
+
+        placeBetBtn.addEventListener('click', async () => {
+            const betAmount = parseFloat(betAmountEl.value);
+            const autoCashout = parseFloat(autoCashoutEl.value);
+            
+            if (isNaN(betAmount) || betAmount < 1) {
+                alert('Please enter a valid bet amount');
+                return;
+            }
+            
+            if (!isNaN(autoCashout)) {
+                if(autoCashout < 1.00) {
+                    alert('Auto cashout must be at least 1.00x');
+                    return;
+                }
+                autoCashoutEnabled = true;
+                autoCashoutValue = autoCashout;
+            } else {
+                autoCashoutEnabled = false;
+                autoCashoutValue = 0;
+            }
+            
+            if (betAmount > userData.balance) {
                 alert('Insufficient balance');
                 return;
             }
             
-            await db.collection('users').doc(gameState.getCurrentUser().uid).update({
-                balance: firebase.firestore.FieldValue.increment(-betAmount)
-            });
-            
-            gameState.setBalance(actualBalance - betAmount);
-            balanceEl.textContent = formatMoney(gameState.getUserData().balance);
-            
-            gameState.startGame(betAmount, autoCashoutSettings);
-            placeBetBtn.disabled = true;
-            cashOutBtn.disabled = false;
-            
-            // Start game intervals
-            gameState.gameInterval = setInterval(() => {
-                const multiplier = gameState.updateMultiplier();
-                multiplierEl.textContent = multiplier.toFixed(2) + 'x';
-                
-                if (autoCashoutSettings.enabled && multiplier >= autoCashoutSettings.value) {
-                    endGame(true);
-                    return;
-                }
-                
-                if (multiplier >= gameState.getState().crashPoint) {
-                    endGame(false);
-                    return;
-                }
-            }, 50);
-            
-            gameState.graphInterval = setInterval(() => {
-                const graphUpdate = gameState.updateGraph();
-                graphPath.setAttribute('d', graphUpdate.path);
-                graphPath.style.stroke = graphUpdate.color;
-            }, 50);
-            
-        } catch (error) {
-            alert('Error placing bet: ' + error.message);
-        }
-    }
-
-    async function endGame(cashedOut) {
-        const state = gameState.getState();
-        const multiplier = cashedOut ? state.currentMultiplier : 1;
-        const winnings = state.currentBet * multiplier;
-
-        try {
-            if (cashedOut) {
-                const expectedMax = 1 + Math.pow(state.elapsedTime, 1.5) * 0.2;
-                if (state.currentMultiplier > expectedMax * 1.1) {
-                    showTamperAlert();
-                    return;
-                }
-
-                await db.collection('users').doc(gameState.getCurrentUser().uid).update({
-                    balance: firebase.firestore.FieldValue.increment(winnings)
+            try {
+                await db.collection('users').doc(currentUser.uid).update({
+                    balance: firebase.firestore.FieldValue.increment(-betAmount)
                 });
+                userData.balance -= betAmount;
+                balanceEl.textContent = formatMoney(userData.balance);
                 
-                gameState.setBalance(gameState.getUserData().balance + winnings);
-                balanceEl.textContent = formatMoney(gameState.getUserData().balance);
+                currentBet = betAmount;
+                startGame();
+            } catch (error) {
+                alert('Error placing bet: ' + error.message);
             }
+        });
 
-            await db.collection('games').add({
-                bet: state.currentBet,
-                multiplier: multiplier.toFixed(2),
-                cashedOut: cashedOut,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                username: gameState.getCurrentUser().email,
-                autoCashout: state.autoCashoutEnabled ? state.autoCashoutValue : null,
-                elapsedTime: state.elapsedTime,
-                crashPoint: state.crashPoint
+        cashOutBtn.addEventListener('click', () => {
+            if (!gameActive) return;
+            endGame(true);
+        });
+
+        document.querySelectorAll('.quick-bet').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const action = btn.getAttribute('data-action');
+                let newAmount = parseFloat(betAmountEl.value) || 0;
+                
+                switch(action) {
+                    case 'half':
+                        newAmount = Math.floor(newAmount / 2);
+                        break;
+                    case 'double':
+                        newAmount = newAmount * 2;
+                        break;
+                    case 'max':
+                        newAmount = userData.balance;
+                        break;
+                }
+                
+                betAmountEl.value = newAmount.toFixed(2);
             });
+        });
 
-            gameState.endGame();
-            autoCashoutEl.value = '';
-            placeBetBtn.disabled = false;
-            cashOutBtn.disabled = true;
-            multiplierEl.textContent = '1.00x';
-            
-            setTimeout(() => {
-                graphPath.setAttribute('d', "M0,300");
-                graphPath.style.stroke = 'var(--primary)';
-            }, 2000);
-            
-            await loadUserData();
-            loadHistory();
-        } catch (error) {
-            console.error('Game error:', error);
-        }
-    }
-
-    // Event listeners
-    placeBetBtn.addEventListener('click', placeBet);
-    cashOutBtn.addEventListener('click', () => endGame(true));
-
-    document.querySelectorAll('.quick-bet').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const action = btn.getAttribute('data-action');
-            let newAmount = parseFloat(betAmountEl.value) || 0;
-            
-            switch(action) {
-                case 'half': newAmount = Math.floor(newAmount / 2); break;
-                case 'double': newAmount = newAmount * 2; break;
-                case 'max': newAmount = gameState.getUserData().balance; break;
+        autoCashoutEl.addEventListener('input', () => {
+            const value = parseFloat(autoCashoutEl.value);
+            if (!isNaN(value) && value < 1.00) {
+                autoCashoutEl.setCustomValidity('Must be at least 1.00');
+            } else {
+                autoCashoutEl.setCustomValidity('');
             }
-            
-            betAmountEl.value = newAmount.toFixed(2);
         });
-    });
 
-    autoCashoutEl.addEventListener('input', () => {
-        const value = parseFloat(autoCashoutEl.value);
-        if (!isNaN(value) && value < 1.00) {
-            autoCashoutEl.setCustomValidity('Must be at least 1.00');
-        } else {
-            autoCashoutEl.setCustomValidity('');
-        }
-    });
+        accountBtn.addEventListener('click', () => {
+            accountModal.style.display = 'flex';
+        });
 
-    accountBtn.addEventListener('click', () => accountModal.style.display = 'flex');
-    referralBtn.addEventListener('click', () => {
-        accountModal.style.display = 'none';
-        referralModal.style.display = 'flex';
-    });
-    copyBtn.addEventListener('click', () => {
-        userReferralCodeEl.select();
-        document.execCommand('copy');
-        alert('Referral code copied!');
-    });
-    logoutBtn.addEventListener('click', () => auth.signOut());
-
-    document.querySelectorAll('.modal-close').forEach(btn => {
-        btn.addEventListener('click', () => {
+        referralBtn.addEventListener('click', () => {
             accountModal.style.display = 'none';
-            referralModal.style.display = 'none';
+            referralModal.style.display = 'flex';
         });
-    });
 
-    window.addEventListener('click', (e) => {
-        if (e.target === accountModal) accountModal.style.display = 'none';
-        if (e.target === referralModal) referralModal.style.display = 'none';
-    });
+        copyBtn.addEventListener('click', () => {
+            userReferralCodeEl.select();
+            document.execCommand('copy');
+            alert('Referral code copied!');
+        });
 
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'F12' || 
-            (e.ctrlKey && e.shiftKey && e.key === 'I') || 
-            (e.ctrlKey && e.shiftKey && e.key === 'J') || 
-            (e.ctrlKey && e.key === 'U')) {
-            e.preventDefault();
-            showTamperAlert();
-        }
-    });
+        logoutBtn.addEventListener('click', () => {
+            auth.signOut();
+        });
 
-    document.addEventListener('contextmenu', function(e) {
-        e.preventDefault();
-        showTamperAlert();
-    });
-</script>
+        document.querySelectorAll('.modal-close').forEach(btn => {
+            btn.addEventListener('click', () => {
+                accountModal.style.display = 'none';
+                referralModal.style.display = 'none';
+            });
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target === accountModal) {
+                accountModal.style.display = 'none';
+            }
+            if (e.target === referralModal) {
+                referralModal.style.display = 'none';
+            }
+        });
+    </script>
 </body>
 </html>

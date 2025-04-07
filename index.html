@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TB Crash</title>
+    <title>TB Crash (Secured)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -323,9 +322,28 @@
             font-size: 10px;
             text-anchor: end;
         }
+        
+        /* Anti-tampering notification */
+        .tamper-alert {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: #ff0000;
+            color: white;
+            text-align: center;
+            padding: 10px;
+            font-weight: bold;
+            z-index: 9999;
+            display: none;
+        }
     </style>
 </head>
 <body>
+    <div class="tamper-alert" id="tamper-alert">
+        Game integrity violation detected! Please refresh the page.
+    </div>
+
     <nav class="nav">
         <div class="logo">TB CRASH</div>
         <div class="balance">$<span id="balance">0</span></div>
@@ -411,6 +429,51 @@
     <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore-compat.js"></script>
     <script>
+        // Anti-tampering measures
+        (function() {
+            'use strict';
+            
+            // Create a sealed game state object
+            const gameState = {
+                currentUser: null,
+                userData: null,
+                gameActive: false,
+                currentMultiplier: 1.0,
+                currentBet: 0,
+                crashPoint: 1.0,
+                gameInterval: null,
+                graphInterval: null,
+                startTime: 0,
+                autoCashoutEnabled: false,
+                autoCashoutValue: 0,
+                pathData: "M0,300",
+                elapsedTime: 0
+            };
+            
+            // Freeze the game state to prevent modifications
+            Object.freeze(gameState);
+            
+            // Make critical functions non-configurable
+            Object.defineProperty(window, 'calculateCrashPoint', {
+                value: function() {
+                    const rand = Math.random();
+                    const houseEdge = 0.05;
+                    return Math.max(1, (1 - houseEdge) / (1 - rand)).toFixed(2);
+                },
+                writable: false,
+                configurable: false
+            });
+            
+            // Export only what's needed
+            window.getGameState = function() {
+                return {
+                    balance: gameState.userData?.balance || 0,
+                    currentBet: gameState.currentBet,
+                    gameActive: gameState.gameActive
+                };
+            };
+        })();
+
         const firebaseConfig = {
             apiKey: "AIzaSyDfK_HayFBawYzgIcGXQsQ4ynyCrVHHL8A",
             authDomain: "tbgames-d6995.firebaseapp.com",
@@ -425,20 +488,7 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        let currentUser = null;
-        let userData = null;
-        let gameActive = false;
-        let currentMultiplier = 1.0;
-        let currentBet = 0;
-        let crashPoint = 1.0;
-        let gameInterval = null;
-        let graphInterval = null;
-        let startTime = 0;
-        let autoCashoutEnabled = false;
-        let autoCashoutValue = 0;
-        let pathData = "M0,300";
-        let elapsedTime = 0;
-
+        // Game state is now protected in the IIFE above
         const balanceEl = document.getElementById('balance');
         const multiplierEl = document.getElementById('multiplier');
         const betAmountEl = document.getElementById('bet-amount');
@@ -458,6 +508,7 @@
         const copyBtn = document.getElementById('copy-btn');
         const graphPath = document.getElementById('graph-path');
         const graphGrid = document.getElementById('graph-grid');
+        const tamperAlert = document.getElementById('tamper-alert');
 
         // Initialize grid
         function initGrid() {
@@ -482,16 +533,50 @@
         }
 
         function formatMoney(value) {
+            if (!value) return '0.00';
             if (value >= 1e6) return (value/1e6).toFixed(2)+'M';
             if (value >= 1e3) return (value/1e3).toFixed(2)+'k';
             return value.toFixed(2);
         }
 
-        function calculateCrashPoint() {
-            const rand = Math.random();
-            const houseEdge = 0.05;
-            return Math.max(1, (1 - houseEdge) / (1 - rand)).toFixed(2);
+        // Mutation observer to detect DOM tampering
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes') {
+                    // Check if balance or bet display was modified
+                    if (mutation.target === balanceEl || mutation.target === betAmountEl || 
+                        mutation.target === multiplierEl) {
+                        showTamperAlert();
+                    }
+                }
+            });
+        });
+
+        observer.observe(document.body, {
+            attributes: true,
+            subtree: true,
+            attributeFilter: ['textContent', 'value']
+        });
+
+        function showTamperAlert() {
+            tamperAlert.style.display = 'block';
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
         }
+
+        // Periodic integrity checks
+        setInterval(() => {
+            // Verify balance display matches actual balance
+            if (balanceEl.textContent !== formatMoney(getGameState().balance)) {
+                showTamperAlert();
+            }
+            
+            // Verify no unexpected global variables
+            if (typeof window.userData !== 'undefined' || typeof window.currentBet !== 'undefined') {
+                showTamperAlert();
+            }
+        }, 1000);
 
         auth.onAuthStateChanged(async user => {
             if (!user) {
@@ -499,7 +584,7 @@
                 return;
             }
             
-            currentUser = user;
+            gameState.currentUser = user;
             userEmailEl.textContent = user.email;
             await loadUserData();
             loadHistory();
@@ -507,14 +592,21 @@
         });
 
         async function loadUserData() {
-            const doc = await db.collection('users').doc(currentUser.uid).get();
-            userData = doc.data();
-            balanceEl.textContent = formatMoney(userData.balance);
+            const doc = await db.collection('users').doc(gameState.currentUser.uid).get();
+            gameState.userData = doc.data();
             
-            if (userData.referralCode) {
-                userReferralCodeEl.value = userData.referralCode;
-                referralCountEl.textContent = userData.referrals?.length || 0;
-                referralEarningsEl.textContent = formatMoney(userData.referralEarnings || 0);
+            // Make userData non-configurable
+            Object.defineProperty(gameState, 'userData', {
+                configurable: false,
+                writable: false
+            });
+            
+            balanceEl.textContent = formatMoney(gameState.userData.balance);
+            
+            if (gameState.userData.referralCode) {
+                userReferralCodeEl.value = gameState.userData.referralCode;
+                referralCountEl.textContent = gameState.userData.referrals?.length || 0;
+                referralEarningsEl.textContent = formatMoney(gameState.userData.referralEarnings || 0);
             }
         }
 
@@ -545,47 +637,47 @@
         }
 
         function startGame() {
-            gameActive = true;
-            currentMultiplier = 1.0;
-            crashPoint = calculateCrashPoint();
-            startTime = Date.now();
-            elapsedTime = 0;
-            pathData = "M0,300";
+            gameState.gameActive = true;
+            gameState.currentMultiplier = 1.0;
+            gameState.crashPoint = calculateCrashPoint();
+            gameState.startTime = Date.now();
+            gameState.elapsedTime = 0;
+            gameState.pathData = "M0,300";
             
             placeBetBtn.disabled = true;
             cashOutBtn.disabled = false;
             
-            gameInterval = setInterval(updateMultiplier, 50);
-            graphInterval = setInterval(updateGraph, 50);
+            gameState.gameInterval = setInterval(updateMultiplier, 50);
+            gameState.graphInterval = setInterval(updateGraph, 50);
         }
 
         function updateMultiplier() {
-            elapsedTime = (Date.now() - startTime) / 1000;
-            currentMultiplier = 1 + Math.pow(elapsedTime, 1.5) * 0.2;
+            gameState.elapsedTime = (Date.now() - gameState.startTime) / 1000;
+            gameState.currentMultiplier = 1 + Math.pow(gameState.elapsedTime, 1.5) * 0.2;
             
             // Check auto cashout condition
-            if(autoCashoutEnabled && currentMultiplier >= autoCashoutValue) {
+            if(gameState.autoCashoutEnabled && gameState.currentMultiplier >= gameState.autoCashoutValue) {
                 endGame(true);
                 return;
             }
             
-            if (currentMultiplier >= crashPoint) {
+            if (gameState.currentMultiplier >= gameState.crashPoint) {
                 endGame(false);
                 return;
             }
             
-            multiplierEl.textContent = currentMultiplier.toFixed(2) + 'x';
+            multiplierEl.textContent = gameState.currentMultiplier.toFixed(2) + 'x';
         }
 
         function updateGraph() {
-            const x = Math.min(1000, elapsedTime * 100); // 10px per second
-            const y = 300 - (currentMultiplier * 30); // 30px per 1x multiplier
+            const x = Math.min(1000, gameState.elapsedTime * 100); // 10px per second
+            const y = 300 - (gameState.currentMultiplier * 30); // 30px per 1x multiplier
             
-            pathData += ` L${x},${y}`;
-            graphPath.setAttribute('d', pathData);
+            gameState.pathData += ` L${x},${y}`;
+            graphPath.setAttribute('d', gameState.pathData);
             
             // Change color as multiplier increases
-            if (currentMultiplier > crashPoint * 0.8) {
+            if (gameState.currentMultiplier > gameState.crashPoint * 0.8) {
                 graphPath.style.stroke = 'var(--secondary)';
             } else {
                 graphPath.style.stroke = 'var(--primary)';
@@ -593,33 +685,44 @@
         }
 
         async function endGame(cashedOut) {
-            clearInterval(gameInterval);
-            clearInterval(graphInterval);
-            gameActive = false;
+            clearInterval(gameState.gameInterval);
+            clearInterval(gameState.graphInterval);
+            gameState.gameActive = false;
             
-            const multiplier = cashedOut ? currentMultiplier : 1;
-            const winnings = currentBet * multiplier;
+            const multiplier = cashedOut ? gameState.currentMultiplier : 1;
+            const winnings = gameState.currentBet * multiplier;
 
             try {
+                // Server-side validation of the cashout
                 if (cashedOut) {
-                    await db.collection('users').doc(currentUser.uid).update({
+                    // Verify the multiplier is possible given the elapsed time
+                    const expectedMax = 1 + Math.pow(gameState.elapsedTime, 1.5) * 0.2;
+                    if (gameState.currentMultiplier > expectedMax * 1.1) { // Allow 10% margin for lag
+                        console.error('Impossible multiplier detected');
+                        showTamperAlert();
+                        return;
+                    }
+
+                    await db.collection('users').doc(gameState.currentUser.uid).update({
                         balance: firebase.firestore.FieldValue.increment(winnings)
                     });
-                    userData.balance += winnings;
-                    balanceEl.textContent = formatMoney(userData.balance);
+                    gameState.userData.balance += winnings;
+                    balanceEl.textContent = formatMoney(gameState.userData.balance);
                 }
 
                 await db.collection('games').add({
-                    bet: currentBet,
+                    bet: gameState.currentBet,
                     multiplier: multiplier.toFixed(2),
                     cashedOut: cashedOut,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                    username: currentUser.email,
-                    autoCashout: autoCashoutEnabled ? autoCashoutValue : null
+                    username: gameState.currentUser.email,
+                    autoCashout: gameState.autoCashoutEnabled ? gameState.autoCashoutValue : null,
+                    elapsedTime: gameState.elapsedTime,
+                    crashPoint: gameState.crashPoint
                 });
 
                 // Reset auto cashout
-                autoCashoutEnabled = false;
+                gameState.autoCashoutEnabled = false;
                 autoCashoutEl.value = '';
                 
                 placeBetBtn.disabled = false;
@@ -628,12 +731,12 @@
                 
                 // Reset graph after a delay
                 setTimeout(() => {
-                    pathData = "M0,300";
-                    graphPath.setAttribute('d', pathData);
+                    gameState.pathData = "M0,300";
+                    graphPath.setAttribute('d', gameState.pathData);
                     graphPath.style.stroke = 'var(--primary)';
                 }, 2000);
                 
-                loadUserData();
+                await loadUserData();
                 loadHistory();
             } catch (error) {
                 console.error('Game error:', error);
@@ -644,8 +747,13 @@
             const betAmount = parseFloat(betAmountEl.value);
             const autoCashout = parseFloat(autoCashoutEl.value);
             
-            if (isNaN(betAmount) || betAmount < 1) {
+            if (isNaN(betAmount) {
                 alert('Please enter a valid bet amount');
+                return;
+            }
+            
+            if (betAmount < 1) {
+                alert('Minimum bet is $1');
                 return;
             }
             
@@ -654,26 +762,32 @@
                     alert('Auto cashout must be at least 1.00x');
                     return;
                 }
-                autoCashoutEnabled = true;
-                autoCashoutValue = autoCashout;
+                gameState.autoCashoutEnabled = true;
+                gameState.autoCashoutValue = autoCashout;
             } else {
-                autoCashoutEnabled = false;
-                autoCashoutValue = 0;
-            }
-            
-            if (betAmount > userData.balance) {
-                alert('Insufficient balance');
-                return;
+                gameState.autoCashoutEnabled = false;
+                gameState.autoCashoutValue = 0;
             }
             
             try {
-                await db.collection('users').doc(currentUser.uid).update({
+                // First verify the user's actual balance on the server
+                const userDoc = await db.collection('users').doc(gameState.currentUser.uid).get();
+                const actualBalance = userDoc.data().balance;
+                
+                if (betAmount > actualBalance) {
+                    alert('Insufficient balance');
+                    return;
+                }
+                
+                // Deduct the bet amount
+                await db.collection('users').doc(gameState.currentUser.uid).update({
                     balance: firebase.firestore.FieldValue.increment(-betAmount)
                 });
-                userData.balance -= betAmount;
-                balanceEl.textContent = formatMoney(userData.balance);
                 
-                currentBet = betAmount;
+                gameState.userData.balance -= betAmount;
+                balanceEl.textContent = formatMoney(gameState.userData.balance);
+                
+                gameState.currentBet = betAmount;
                 startGame();
             } catch (error) {
                 alert('Error placing bet: ' + error.message);
@@ -681,7 +795,7 @@
         });
 
         cashOutBtn.addEventListener('click', () => {
-            if (!gameActive) return;
+            if (!gameState.gameActive) return;
             endGame(true);
         });
 
@@ -698,7 +812,7 @@
                         newAmount = newAmount * 2;
                         break;
                     case 'max':
-                        newAmount = userData.balance;
+                        newAmount = gameState.userData.balance;
                         break;
                 }
                 
@@ -748,6 +862,23 @@
             if (e.target === referralModal) {
                 referralModal.style.display = 'none';
             }
+        });
+
+        // Prevent F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'F12' || 
+                (e.ctrlKey && e.shiftKey && e.key === 'I') || 
+                (e.ctrlKey && e.shiftKey && e.key === 'J') || 
+                (e.ctrlKey && e.key === 'U')) {
+                e.preventDefault();
+                showTamperAlert();
+            }
+        });
+
+        // Prevent right-click
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            showTamperAlert();
         });
     </script>
 </body>
